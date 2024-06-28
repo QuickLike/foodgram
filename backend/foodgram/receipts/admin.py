@@ -25,16 +25,16 @@ class IngredientAdmin(admin.ModelAdmin):
 class TagAdmin(admin.ModelAdmin):
     list_display = (
         'slug',
-        'title',
+        'name',
     )
     list_editable = (
-        'title',
+        'name',
     )
     search_fields = (
-        'title',
+        'name',
     )
     list_filter = (
-        'title',
+        'name',
     )
     list_display_links = (
         'slug',
@@ -49,22 +49,22 @@ class ReceiptIngredientsInline(admin.TabularInline):
 class ReceiptAdmin(admin.ModelAdmin):
     inlines = [ReceiptIngredientsInline]
     list_display = (
-        'title',
+        'name',
         'author',
     )
     search_fields = (
-        'title',
+        'name',
         'tags',
         'ingredients',
         'description',
     )
     list_filter = (
         'tags',
-        'time',
+        'cooking_time',
         'published_at',
     )
     list_display_links = (
-        'title',
+        'name',
     )
 
 

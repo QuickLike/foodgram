@@ -5,7 +5,7 @@ User = get_user_model()
 
 
 class Tag(models.Model):
-    title = models.CharField(
+    name = models.CharField(
         max_length=128,
         verbose_name='Название',
         unique=True,
@@ -23,7 +23,7 @@ class Tag(models.Model):
         verbose_name_plural = 'теги'
 
     def __str__(self):
-        return self.title[:20]
+        return self.name[:20]
 
 
 class Ingredient(models.Model):
@@ -36,6 +36,10 @@ class Ingredient(models.Model):
         max_length=16,
         verbose_name='Единица измерения',
         null=False,
+    )
+    amount = models.PositiveSmallIntegerField(
+        verbose_name='Количество',
+        default=0,
     )
 
     class Meta:
@@ -54,7 +58,7 @@ class Receipt(models.Model):
         verbose_name='Автор',
         null=False,
     )
-    title = models.CharField(
+    name = models.CharField(
         max_length=128,
         verbose_name='Название',
         null=False,
@@ -64,7 +68,7 @@ class Receipt(models.Model):
         default=None,
         null=False,
     )
-    description = models.TextField(
+    text = models.TextField(
         max_length=1024,
         verbose_name='Описание',
         null=False,
@@ -79,7 +83,7 @@ class Receipt(models.Model):
         verbose_name='Теги',
         through='TagReceipt',
     )
-    time = models.PositiveIntegerField(
+    cooking_time = models.PositiveIntegerField(
         verbose_name='Время приготовления',
         null=False,
     )
@@ -87,13 +91,22 @@ class Receipt(models.Model):
         verbose_name='Опубликовано',
         auto_now_add=True,
     )
+    is_favorited = models.BooleanField(
+        verbose_name='В избранном',
+        default=False,
+    )
+    is_in_shopping_cart = models.BooleanField(
+        verbose_name='В корзине',
+        default=False,
+    )
 
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
+        ordering = ['-published_at']
 
     def __str__(self):
-        return self.title[:20]
+        return self.name[:20]
 
 
 class IngredientReceipt(models.Model):
@@ -105,7 +118,7 @@ class IngredientReceipt(models.Model):
         Receipt,
         on_delete=models.CASCADE,
     )
-    count = models.PositiveIntegerField(
+    amount = models.PositiveSmallIntegerField(
         verbose_name='Количество',
         default=0,
     )
