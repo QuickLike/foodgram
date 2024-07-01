@@ -1,20 +1,20 @@
 import base64
+from http import HTTPStatus
 
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.base import ContentFile
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.generics import get_object_or_404
 
-from receipts.models import Favourite, Ingredient, IngredientReceipt, Receipt, Tag
+from receipts.models import Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
 from users.serializers import UserSerializer
-
 
 User = get_user_model()
 
 
 class IngredientSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Ingredient
         fields = (
@@ -46,6 +46,8 @@ class ReceiptSerializer(serializers.ModelSerializer):
     author = UserSerializer()
     ingredients = ReceiptIngredientSerializer(many=True)
     tags = TagSerializer(many=True)
+    is_in_shopping_cart = serializers.SerializerMethodField()
+    is_favorited = serializers.SerializerMethodField()
 
     class Meta:
         model = Receipt
@@ -61,6 +63,24 @@ class ReceiptSerializer(serializers.ModelSerializer):
             'text',
             'cooking_time'
         )
+
+        def get_is_in_shopping_cart(self, obj):
+            request = self.context['request']
+            if not request or not request.user.is_authenticated:
+                return False
+            user = request.user
+            if isinstance(user, AnonymousUser):
+                return False
+            return ShoppingCart.objects.filter(user=user, subscribe_on=obj).exists()
+
+        def get_is_favoritedt(self, obj):
+            request = self.context['request']
+            if not request or not request.user.is_authenticated:
+                return False
+            user = request.user
+            if isinstance(user, AnonymousUser):
+                return False
+            return Favourite.objects.filter(user=user, subscribe_on=obj).exists()
 
 
 class TokenSerializer(serializers.Serializer):
@@ -103,6 +123,41 @@ class FavouriteSerializer(serializers.ModelSerializer):
                 user=user,
                 receipt=receipt
         ).exists():
-            raise serializers.ValidationError("Рецепт уже добавлен в избранное")
+            raise serializers.ValidationError(
+                detail="Рецепт уже добавлен в избранное",
+                code=status.HTTP_400_BAD_REQUEST
+            )
+
+        return data
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    receipt = serializers.PrimaryKeyRelatedField(
+        queryset=Receipt.objects.all(),
+    )
+
+    class Meta:
+        model = ShoppingCart
+        fields = ['id', 'user', 'receipt']
+        read_only_fields = ['id']
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        receipt = validated_data['receipt']
+        return ShoppingCart.objects.create(user=user, receipt=receipt)
+
+    def validate(self, data):
+        user = data['user']
+        receipt = data['receipt']
+
+        if ShoppingCart.objects.filter(
+                user=user,
+                receipt=receipt
+        ).exists():
+            raise serializers.ValidationError(
+                detail="Рецепт уже добавлен в корзину",
+                code=status.HTTP_400_BAD_REQUEST
+            )
 
         return data

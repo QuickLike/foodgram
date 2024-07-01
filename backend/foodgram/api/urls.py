@@ -7,17 +7,18 @@ from . import views
 
 router = DefaultRouter()
 # router.register('users', UserViewSet)
+router.register('recipes', views.ReceiptViewSet)
 router.register('tags', views.TagViewSet)
 router.register('ingredients', views.IngredientViewSet)
-router.register('recipes', views.ReceiptViewSet)
 router.register(r'recipes/(?P<receipt_id>\d+)/get-link', views.ReceiptLinkViewSet, basename='receipt-link')
 router.register(r'recipes/(?P<receipt_id>\d+)/favourite', views.FavouriteViewSet, basename='favourite')
+router.register(r'recipes/(?P<receipt_id>\d+)/shopping_cart', views.ShoppingCartViewSet, basename='shopping-cart')
 router.register('recipes/download_shopping_cart', views.DownloadShoppingCartViewSet, basename='download-shopping-cart')
 
 
 urlpatterns = [
     path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
-    path('users/me/', views.UserMeViewSet.as_view({'get': 'list'}), name='user-me'),
+    path('users/me/', views.UserMeView.as_view(), name='user-me'),
     path('users/<int:user_id>/subscribe/', views.SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
     path('users/', views.UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
     path('', include(router.urls)),

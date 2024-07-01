@@ -4,6 +4,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from djoser.views import UserViewSet as DjoserUserViewSet
 from djoser.compat import get_user_email
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, viewsets, views, mixins
 from rest_framework.decorators import action
 from rest_framework.mixins import CreateModelMixin, DestroyModelMixin
@@ -15,8 +16,8 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework.response import Response
 
 from .permissions import IsAuthorOrReadOnly
-from .serializers import IngredientSerializer, ReceiptSerializer, TagSerializer, TokenSerializer, FavouriteSerializer
-from receipts.models import Favourite, Ingredient, Receipt, Subscription, Tag
+from .serializers import FavouriteSerializer, IngredientSerializer, ReceiptSerializer, ShoppingCartSerializer, TagSerializer, TokenSerializer
+from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Subscription, Tag
 from users.serializers import UserCreateSerializer, UserSerializer
 
 
@@ -24,7 +25,8 @@ User = get_user_model()
 
 
 class AvatarView(APIView):
-    @method_decorator(csrf_exempt)
+    permission_classes = (IsAuthorOrReadOnly,)
+
     def put(self, request,  *args,  **kwargs):
         serializer = UserSerializer(
             data=request.data,
@@ -35,7 +37,6 @@ class AvatarView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @method_decorator(csrf_exempt)
     def delete(self, request, *args, **kwargs):
         user = request.user
         user.avatar = None
@@ -47,19 +48,23 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     pagination_class = None
     serializer_class = TagSerializer
-    http_method_names = ['get', ]
+    permission_classes = (AllowAny,)
+    http_method_names = ('get', 'post')
 
 
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    http_method_names = ['get', ]
+    permission_classes = (AllowAny,)
+    http_method_names = ('get', )
 
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthorOrReadOnly,)
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
+    filter_backends = (DjangoFilterBackend,)
+    filterset_fields = ('is_in_shopping_cart', 'is_favorited', 'tags__slug', 'author__id')
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def perform_create(self, serializer):
@@ -69,7 +74,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
 
 class FavouriteViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
     serializer_class = FavouriteSerializer
     http_method_names = ('post', 'delete')
 
@@ -92,6 +97,28 @@ class FavouriteViewSet(viewsets.ModelViewSet):
 
 class ReceiptLinkViewSet(viewsets.ViewSet):
     pass
+
+
+class ShoppingCartViewSet(viewsets.ViewSet):
+    permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
+    serializer_class = ShoppingCartSerializer
+    http_method_names = ('post', 'delete')
+
+    def create(self, request, *args, **kwargs):
+        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
+        shopping_cart_data = {'user': request.user.id, 'receipt': receipt.id}
+        serializer = self.get_serializer(data=shopping_cart_data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
+        shopping_cart_item = ShoppingCart.objects.get(user=request.user, receipt=receipt)
+        if not shopping_cart_item.exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        shopping_cart_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DownloadShoppingCartViewSet(viewsets.ViewSet):
@@ -145,18 +172,13 @@ class TokenLogoutView(views.APIView):
             return Response({"detail": 'Произошла ошибка при удалении токена'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class UserMeViewSet(viewsets.ModelViewSet):
+class UserMeView(views.APIView):
     permission_classes = (IsAuthenticated,)
-    serializer_class = UserSerializer
 
-    @action(url_path='me', detail=False, methods=['GET'])
-    def me(self, request,  *args,  **kwargs):
+    def get(self, request,  *args,  **kwargs):
         user = request.user
-        serializer = self.get_serializer(user)
+        serializer = UserSerializer(user)
         return Response(serializer.data)
-
-    def get_object(self):
-        return self.request.user
 
 
 # class UserRegistrationView(APIView):

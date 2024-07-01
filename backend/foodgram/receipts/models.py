@@ -209,14 +209,27 @@ class Favourite(models.Model):
         return f'{self.user} {self.receipt}'
 
 
-class Cart(models.Model):
+class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='user_cart',
+        related_name='shopping_cart',
     )
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,
-        related_name='carts',
+        related_name='added_to_shopping_to_cart',
     )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'receipt'],
+                name='unique_user_shopping_cart',
+            )
+        ]
+        verbose_name = 'Корзина покупок'
+        verbose_name_plural = 'корзины покупок'
+
+    def __str__(self):
+        return f'{self.user} {self.receipt}'
