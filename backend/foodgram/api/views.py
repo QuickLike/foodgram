@@ -7,6 +7,7 @@ from djoser.compat import get_user_email
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status, viewsets, views, mixins
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.mixins import CreateModelMixin, DestroyModelMixin
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
@@ -15,6 +16,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, Bl
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework.response import Response
 
+from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
 from .serializers import FavouriteSerializer, IngredientSerializer, ReceiptSerializer, ShoppingCartSerializer, TagSerializer, TokenSerializer
 from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Subscription, Tag
@@ -44,19 +46,14 @@ class AvatarView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class TagViewSet(viewsets.ModelViewSet):
+class TagViewSet(IngredientTagMixin):
     queryset = Tag.objects.all()
-    pagination_class = None
     serializer_class = TagSerializer
-    permission_classes = (AllowAny,)
-    http_method_names = ('get', 'post')
 
 
-class IngredientViewSet(viewsets.ModelViewSet):
+class IngredientViewSet(IngredientTagMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = (AllowAny,)
-    http_method_names = ('get', )
 
 
 class ReceiptViewSet(viewsets.ModelViewSet):
