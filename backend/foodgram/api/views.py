@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from djoser.views import UserViewSet as DjoserUserViewSet
 from djoser.compat import get_user_email
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics, status, viewsets, views, mixins
+from rest_framework import filters, generics, status, viewsets, views, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.mixins import CreateModelMixin, DestroyModelMixin
@@ -16,6 +16,7 @@ from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, Bl
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework.response import Response
 
+from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
 from .serializers import FavouriteSerializer, IngredientSerializer, ReceiptSerializer, ShoppingCartSerializer, TagSerializer, TokenSerializer
@@ -54,14 +55,16 @@ class TagViewSet(IngredientTagMixin):
 class IngredientViewSet(IngredientTagMixin):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
+    filterset_class = IngredientFilter
+    filter_backends = (DjangoFilterBackend,)
 
 
 class ReceiptViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrReadOnly, )
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
+    filterset_class = ReceiptFilter
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('is_in_shopping_cart', 'is_favorited', 'tags__slug', 'author__id')
     http_method_names = ['get', 'post', 'patch', 'delete']
 
     def perform_create(self, serializer):
