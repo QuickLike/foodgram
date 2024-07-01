@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 User = get_user_model()
@@ -36,10 +37,6 @@ class Ingredient(models.Model):
         max_length=16,
         verbose_name='Единица измерения',
         null=False,
-    )
-    amount = models.PositiveSmallIntegerField(
-        verbose_name='Количество',
-        default=0,
     )
 
     class Meta:
@@ -120,7 +117,8 @@ class IngredientReceipt(models.Model):
     )
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество',
-        default=0,
+        validators=[MinValueValidator(1), MaxValueValidator(100_000)],
+        default=1,
     )
 
     class Meta:

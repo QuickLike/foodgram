@@ -1,15 +1,10 @@
 import base64
-from http import HTTPStatus
-
 from django.contrib.auth import authenticate, get_user_model
-from django.contrib.auth.models import AnonymousUser
-from django.contrib.auth.tokens import default_token_generator
 from django.core.files.base import ContentFile
 from rest_framework import serializers, status
-from rest_framework.generics import get_object_or_404
 
 from receipts.models import Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
-from users.serializers import UserSerializer
+from users.serializers import UserSerializer, Base64ImageField
 
 User = get_user_model()
 
@@ -23,11 +18,14 @@ class IngredientSerializer(serializers.ModelSerializer):
             'measurement_unit'
         )
 
-
 class ReceiptIngredientSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='ingredient.id')
+    name = serializers.CharField(source='ingredient.name')
+    measurement_unit = serializers.CharField(source='ingredient.measurement_unit')
+    amount = serializers.IntegerField()
 
     class Meta:
-        model = Ingredient
+        model = IngredientReceipt
         fields = (
             'id',
             'name',
@@ -35,6 +33,16 @@ class ReceiptIngredientSerializer(serializers.ModelSerializer):
             'amount'
         )
 
+
+class ReceiptIngredientCreateSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField()
+
+    class Meta:
+        model = IngredientReceipt
+        fields = (
+            'id',
+            'amount'
+        )
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +52,7 @@ class TagSerializer(serializers.ModelSerializer):
 
 class ReceiptSerializer(serializers.ModelSerializer):
     author = UserSerializer()
-    ingredients = ReceiptIngredientSerializer(many=True)
+    ingredients = ReceiptIngredientSerializer(source='ingredientreceipt_set', many=True)
     tags = TagSerializer(many=True)
     is_in_shopping_cart = serializers.SerializerMethodField()
     is_favorited = serializers.SerializerMethodField()
@@ -64,46 +72,73 @@ class ReceiptSerializer(serializers.ModelSerializer):
             'cooking_time'
         )
 
-        def get_is_in_shopping_cart(self, obj):
-            request = self.context['request']
-            if not request or not request.user.is_authenticated:
-                return False
-            user = request.user
-            if isinstance(user, AnonymousUser):
-                return False
-            return ShoppingCart.objects.filter(user=user, subscribe_on=obj).exists()
+    def get_is_in_shopping_cart(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return ShoppingCart.objects.filter(user=request.user, receipt=obj).exists()
 
-        def get_is_favoritedt(self, obj):
-            request = self.context['request']
-            if not request or not request.user.is_authenticated:
-                return False
-            user = request.user
-            if isinstance(user, AnonymousUser):
-                return False
-            return Favourite.objects.filter(user=user, subscribe_on=obj).exists()
+    def get_is_favorited(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+        return Favourite.objects.filter(user=request.user, receipt=obj).exists()
+
+
+class ReceiptCreateSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    ingredients = ReceiptIngredientCreateSerializer(many=True)
+    tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
+    image = Base64ImageField(required=False)
+
+    class Meta:
+        model = Receipt
+        fields = (
+            'ingredients',
+            'tags',
+            'image',
+            'name',
+            'text',
+            'cooking_time',
+            'author',
+        )
+
+    def create(self, validated_data):
+        ingredients_data = validated_data.pop('ingredients')
+        tags_data = validated_data.pop('tags')
+        receipt = Receipt.objects.create(**validated_data)
+
+        receipt.tags.set(tags_data)
+
+        for ingredient_data in ingredients_data:
+            ingredient = Ingredient.objects.get(id=ingredient_data['id'])
+            IngredientReceipt.objects.create(
+                receipt=receipt,
+                ingredient=ingredient,
+                amount=ingredient_data['amount']
+            )
+
+        return receipt
 
 
 class TokenSerializer(serializers.Serializer):
     email = serializers.CharField(required=True)
     password = serializers.CharField(required=True)
 
+    def validate(self, data):
+        email = data.get('email')
+        password = data.get('password')
 
-def validate(self, data):
-    email = data.get('email')
-    password = data.get('password')
+        user = authenticate(email=email, password=password)
+        if user is None:
+            raise serializers.ValidationError('Неправильные учетные данные')
 
-    user = authenticate(email=email, password=password)
-    if user is None:
-        raise serializers.ValidationError('Неправильные учетные данные')
-
-    return data
+        return data
 
 
 class FavouriteSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    receipt = serializers.PrimaryKeyRelatedField(
-        queryset=Receipt.objects.all(),
-    )
+    receipt = serializers.PrimaryKeyRelatedField(queryset=Receipt.objects.all())
 
     class Meta:
         model = Favourite
@@ -119,23 +154,15 @@ class FavouriteSerializer(serializers.ModelSerializer):
         user = data['user']
         receipt = data['receipt']
 
-        if Favourite.objects.filter(
-                user=user,
-                receipt=receipt
-        ).exists():
-            raise serializers.ValidationError(
-                detail="Рецепт уже добавлен в избранное",
-                code=status.HTTP_400_BAD_REQUEST
-            )
+        if Favourite.objects.filter(user=user, receipt=receipt).exists():
+            raise serializers.ValidationError(detail="Рецепт уже добавлен в избранное", code=status.HTTP_400_BAD_REQUEST)
 
         return data
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    receipt = serializers.PrimaryKeyRelatedField(
-        queryset=Receipt.objects.all(),
-    )
+    receipt = serializers.PrimaryKeyRelatedField(queryset=Receipt.objects.all())
 
     class Meta:
         model = ShoppingCart
@@ -151,13 +178,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
         user = data['user']
         receipt = data['receipt']
 
-        if ShoppingCart.objects.filter(
-                user=user,
-                receipt=receipt
-        ).exists():
-            raise serializers.ValidationError(
-                detail="Рецепт уже добавлен в корзину",
-                code=status.HTTP_400_BAD_REQUEST
-            )
+        if ShoppingCart.objects.filter(user=user, receipt=receipt).exists():
+            raise serializers.ValidationError(detail="Рецепт уже добавлен в корзину", code=status.HTTP_400_BAD_REQUEST)
 
         return data

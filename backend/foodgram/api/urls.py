@@ -18,14 +18,11 @@ router.register('recipes/download_shopping_cart', views.DownloadShoppingCartView
 
 urlpatterns = [
     path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
-    path('users/me/', views.UserMeView.as_view(), name='user-me'),
     path('users/<int:user_id>/subscribe/', views.SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
     path('users/', views.UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
     path('', include(router.urls)),
     path('', include('djoser.urls')),
-    path('', include('djoser.urls.jwt')),
-    path('auth/token/login/', views.TokenLoginView.as_view(), name='login'),
-    path('auth/token/logout/', views.TokenLogoutView.as_view(), name='logout'),
+    path('auth/', include('djoser.urls.authtoken')),
 ]
 
 if settings.DEBUG:
