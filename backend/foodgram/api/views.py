@@ -2,11 +2,11 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import render, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from djoser.views import UserViewSet as DjoserUserViewSet, UserViewSet
+from djoser.views import UserViewSet
 from djoser.compat import get_user_email
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, status, viewsets, views, mixins
-from rest_framework.decorators import action
+from rest_framework.decorators import action, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.mixins import CreateModelMixin, DestroyModelMixin
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -215,7 +215,14 @@ class UserRegistrationView(UserViewSet):
             return UserCreateSerializer
         return UserSerializer
 
-    @action(methods=['get'], detail=False, permission_classes=[IsAuthenticated])
+    def get_permissions(self):
+        if self.action == 'create':
+            self.permission_classes = [AllowAny]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
+
+    @action(methods=['get'], detail=False)
     def me(self, request, *args, **kwargs):
         current_user = request.user
         serializer = self.get_serializer(current_user)

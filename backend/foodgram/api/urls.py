@@ -20,6 +20,7 @@ urlpatterns = [
     path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
     path('users/<int:user_id>/subscribe/', views.SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
     path('users/', views.UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
+    path('users/me/', views.UserRegistrationView.as_view({'get': 'me'}), name='user-me'),
     path('', include(router.urls)),
     path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
