@@ -18,6 +18,7 @@ class IngredientSerializer(serializers.ModelSerializer):
             'measurement_unit'
         )
 
+
 class ReceiptIngredientSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='ingredient.id')
     name = serializers.CharField(source='ingredient.name')
@@ -43,6 +44,7 @@ class ReceiptIngredientCreateSerializer(serializers.ModelSerializer):
             'id',
             'amount'
         )
+
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -87,7 +89,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
 class ReceiptCreateSerializer(serializers.ModelSerializer):
     author = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    ingredients = ReceiptIngredientCreateSerializer(many=True)
+    ingredients = ReceiptIngredientCreateSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True)
     image = Base64ImageField(required=False)
 

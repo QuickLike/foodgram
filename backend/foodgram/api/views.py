@@ -54,7 +54,6 @@ class TagViewSet(IngredientTagMixin):
 
 class IngredientViewSet(IngredientTagMixin):
     queryset = Ingredient.objects.all()
-    permission_classes = (IsAuthenticated,)
     serializer_class = IngredientSerializer
     filterset_class = IngredientFilter
     filter_backends = (DjangoFilterBackend,)
