@@ -20,8 +20,7 @@ from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
 from .serializers import FavouriteSerializer, IngredientSerializer, ReceiptSerializer, ReceiptCreateSerializer, ShoppingCartSerializer, TagSerializer, TokenSerializer
-from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Subscription, Tag
-from users.serializers import UserCreateSerializer, UserSerializer
+from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Tag
 
 
 User = get_user_model()
@@ -128,108 +127,3 @@ class ShoppingCartViewSet(viewsets.ViewSet):
 
 class DownloadShoppingCartViewSet(viewsets.ViewSet):
     pass
-
-
-class SubscribeViewSet(viewsets.ModelViewSet):
-    http_method_names = ['post', 'delete']
-
-    def create(self, request, *args, **kwargs):
-        user = request.user
-        user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        subscribe, create = Subscription.objects.create(user=user, subscribe_on=user_to_subscribe)
-        return Response(status=status.HTTP_201_CREATED)
-
-    def destroy(self, request, *args, **kwargs):
-        user = request.user
-        user_to_subscribe = User.objects.get(pk=kwargs['user_id'])
-        if not user_to_subscribe:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        subscribe = Subscription.objects.get(user=user, subscribe_on=user_to_subscribe)
-        subscribe.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class TokenLoginView(generics.CreateAPIView):
-    serializer_class = TokenSerializer
-
-    @method_decorator(csrf_exempt)
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data['email']
-        user = get_object_or_404(User, email=email)
-        token = str(AccessToken.for_user(user))
-        return Response({'auth_token': token}, status=status.HTTP_200_OK)
-
-
-class TokenLogoutView(views.APIView):
-    permission_classes = (IsAuthenticated,)
-    serializer_class = TokenSerializer
-
-    def post(self, request):
-        try:
-            tokens = OutstandingToken.objects.filter(user=request.user)
-            for token in tokens:
-                token.delete()
-            return Response({"detail": "Токен успешно удален"}, status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response({"detail": 'Произошла ошибка при удалении токена'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-# class UserMeView(views.APIView):
-#     permission_classes = (IsAuthenticated,)
-#
-#     def get(self, request,  *args,  **kwargs):
-#         user = request.user
-#         serializer = UserSerializer(user)
-#         return Response(serializer.data)
-
-
-# class UserRegistrationView(APIView):
-#     permission_classes = (AllowAny,)
-#     queryset = User.objects.all()
-#     serializer_class = UserCreateSerializer
-#
-#     def post(self, request, *args, **kwargs):
-#         serializer = UserCreateSerializer(data=request.data, context={'request': request})
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class UserRegistrationView(UserViewSet):
-    serializer_class = UserCreateSerializer
-    queryset = User.objects.all()
-    http_method_names = ['post', 'get']
-
-    def create(self, request, *args, **kwargs):
-        serializer = UserCreateSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def get_serializer_class(self):
-        if self.request.method == 'POST':
-            return UserCreateSerializer
-        return UserSerializer
-
-    def get_permissions(self):
-        if self.action == 'create':
-            self.permission_classes = [AllowAny]
-        else:
-            self.permission_classes = [IsAuthenticated]
-        return super().get_permissions()
-
-    @action(methods=['get'], detail=False)
-    def me(self, request, *args, **kwargs):
-        current_user = request.user
-        serializer = self.get_serializer(current_user)
-        return Response(serializer.data)
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    http_method_names = ['get']

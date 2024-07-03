@@ -155,32 +155,6 @@ class TagReceipt(models.Model):
         return f'{self.tag} {self.receipt}'
 
 
-class Subscription(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='user_subscriptions',
-    )
-    subscribe_on = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='user_subscribers',
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'subscribe_on'],
-                name='unique_user_subscribe_on',
-            )
-        ]
-        verbose_name = 'Подписка'
-        verbose_name_plural = 'подписки'
-
-    def __str__(self):
-        return f'{self.user} {self.subscribe_on}'
-
-
 class Favourite(models.Model):
     user = models.ForeignKey(
         User,

@@ -5,8 +5,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 
-from .models import CustomUser
-from receipts.models import Subscription
+from .models import CustomUser, Subscription
 
 
 class Base64ImageField(serializers.ImageField):
@@ -72,3 +71,7 @@ class UserSerializer(serializers.ModelSerializer):
         if isinstance(user, AnonymousUser):
             return False
         return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
+
+
+class SubscribeSerializer(serializers.ModelSerializer):
+    pass

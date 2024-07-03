@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, BaseUserManager, models
 from django.contrib.auth.validators import ASCIIUsernameValidator
 
@@ -43,3 +44,29 @@ class CustomUser(AbstractUser):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='user_subscriptions',
+    )
+    subscribe_on = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name='user_subscribers',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'subscribe_on'],
+                name='unique_user_subscribe_on'
+            )
+        ]
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'подписки'
+
+    def __str__(self):
+        return f'{self.user} {self.subscribe_on}'

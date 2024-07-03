@@ -4,6 +4,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from . import views
+from users.views import UserRegistrationView, SubscribeViewSet
 
 router = DefaultRouter()
 # router.register('users', UserViewSet)
@@ -18,9 +19,9 @@ router.register('recipes/download_shopping_cart', views.DownloadShoppingCartView
 
 urlpatterns = [
     path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
-    path('users/<int:user_id>/subscribe/', views.SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
-    path('users/', views.UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
-    path('users/me/', views.UserRegistrationView.as_view({'get': 'me'}), name='user-me'),
+    path('users/<int:user_id>/subscribe/', SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
+    path('users/', UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
+    path('users/me/', UserRegistrationView.as_view({'get': 'me'}), name='user-me'),
     path('', include(router.urls)),
     path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
