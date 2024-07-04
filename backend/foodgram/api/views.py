@@ -2,10 +2,11 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
+from . import permissions
 from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
@@ -49,7 +50,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         )
 
     def get_serializer_class(self):
-        if self.request.method == 'POST':
+        if self.request.method not in SAFE_METHODS:
             return ReceiptCreateSerializer
         return ReceiptSerializer
 
@@ -82,7 +83,7 @@ class ReceiptLinkViewSet(viewsets.ViewSet):
 
 class ShoppingCartViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-    http_method_names = ('post', 'delete')
+    http_method_names = ['post', 'delete']
 
     def create(self, request, *args, **kwargs):
         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
@@ -94,7 +95,7 @@ class ShoppingCartViewSet(viewsets.ViewSet):
 
     def destroy(self, request, *args, **kwargs):
         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-        shopping_cart_item = ShoppingCart.objects.get(user=request.user, receipt=receipt)
+        shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
         if not shopping_cart_item.exists():
             return Response(status=status.HTTP_400_BAD_REQUEST)
         shopping_cart_item.delete()

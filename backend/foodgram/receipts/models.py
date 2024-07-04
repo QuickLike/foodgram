@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -88,6 +90,11 @@ class Receipt(models.Model):
         verbose_name='Опубликовано',
         auto_now_add=True,
     )
+    short_link = models.CharField(
+        max_length=6,
+        unique=True,
+        default=''
+    )
     is_favorited = models.BooleanField(
         verbose_name='В избранном',
         default=False,
@@ -101,6 +108,11 @@ class Receipt(models.Model):
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
         ordering = ['-published_at']
+
+    def save(self, *args, **kwargs):
+        if not self.short_link:
+            self.short_link = str(uuid.uuid4())[:6]
+        super().save(*args, kwargs)
 
     def __str__(self):
         return self.name[:20]

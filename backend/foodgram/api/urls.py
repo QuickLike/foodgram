@@ -15,7 +15,6 @@ router.register(r'recipes/(?P<receipt_id>\d+)/favourite', views.FavouriteViewSet
 router.register(r'recipes/(?P<receipt_id>\d+)/shopping_cart', views.ShoppingCartViewSet, basename='shopping-cart')
 router.register('recipes/download_shopping_cart', views.DownloadShoppingCartViewSet, basename='download-shopping-cart')
 
-
 urlpatterns = [
     path('users/me/avatar/', AvatarView.as_view(), name='avatar'),
     path('users/<int:user_id>/subscribe/', SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
