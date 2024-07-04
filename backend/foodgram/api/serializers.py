@@ -122,6 +122,10 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
 
         return receipt
 
+    def to_representation(self, instance):
+        return ReceiptSerializer(
+            instance, context={'request': self.context.get('request')}).data
+
 
 class TokenSerializer(serializers.Serializer):
     email = serializers.CharField(required=True)
