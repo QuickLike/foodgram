@@ -61,8 +61,14 @@ class UserViewSet(viewsets.ModelViewSet):
 class SubscribeViewSet(viewsets.ModelViewSet):
     serializer_class = SubscribeSerializer
     queryset = Subscription.objects.all()
-    http_method_names = ['post', 'delete']
+    http_method_names = ['get', 'post', 'delete']
     permission_classes = [IsAuthenticated]
+
+    def list(self, request, *args, **kwargs):
+        current_user = request.user
+        subscriptions = current_user.user_subscriptions.all()
+        serializer = SubscribeSerializer(subscriptions, many=True)
+        return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         user = request.user
