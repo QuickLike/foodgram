@@ -7,8 +7,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
-from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer
 from .models import Subscription
+from .paginations import LimitPagination
+from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer
 from api.permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
@@ -63,12 +64,15 @@ class SubscribeViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     http_method_names = ['get', 'post', 'delete']
     permission_classes = [IsAuthenticated]
+    pagination_class = LimitPagination
 
     def list(self, request, *args, **kwargs):
         current_user = request.user
         subscriptions = current_user.user_subscriptions.all()
-        serializer = SubscribeSerializer(subscriptions, many=True)
-        return Response(serializer.data)
+        paginator = LimitPagination()
+        page = paginator.paginate_queryset(subscriptions, request)
+        serializer = SubscribeSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def create(self, request, *args, **kwargs):
         user = request.user
