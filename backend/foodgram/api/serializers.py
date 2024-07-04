@@ -105,6 +105,12 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
             'author',
         )
 
+    def validate_ingredients(self, value):
+        for ingredient_data in value:
+            if not Ingredient.objects.filter(id=ingredient_data['id']).exists():
+                raise serializers.ValidationError(f"Ingredient with ID {ingredient_data['id']} does not exist.")
+        return value
+
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
         tags_data = validated_data.pop('tags')
@@ -114,11 +120,14 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
 
         for ingredient_data in ingredients_data:
             ingredient = Ingredient.objects.get(id=ingredient_data['id'])
-            IngredientReceipt.objects.create(
+            ingredient_receipt, created = IngredientReceipt.objects.get_or_create(
                 receipt=receipt,
                 ingredient=ingredient,
-                amount=ingredient_data['amount']
+                defaults={'amount': ingredient_data['amount']}
             )
+            if not created:
+                ingredient_receipt.amount = ingredient_data['amount']
+                ingredient_receipt.save()
 
         return receipt
 
