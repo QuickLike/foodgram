@@ -7,6 +7,14 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
 from .models import CustomUser, Subscription
+from receipts.models import Receipt
+
+
+class UserRecipesSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Receipt
+        fields = ['id', 'name', 'image', 'cooking_time']
 
 
 class Base64ImageField(serializers.ImageField):
@@ -74,6 +82,51 @@ class UserSerializer(serializers.ModelSerializer):
         return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
 
 
+class UserSubscriberSerializer(serializers.ModelSerializer):
+    avatar = Base64ImageField(
+        required=False,
+        allow_null=True
+    )
+    is_subscribed = serializers.SerializerMethodField()
+    recipes_count = serializers.SerializerMethodField()
+    recipes = UserRecipesSerializer(many=True)
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
+            'avatar',
+        )
+
+    def get_is_subscribed(self, obj):
+        request = self.context['request']
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if isinstance(user, AnonymousUser):
+            return False
+        return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
+
+    def get_recipes(self, obj):
+        request = self.context['request']
+        if not request or not request.user.is_authenticated:
+            return False
+        user = request.user
+        if isinstance(user, AnonymousUser):
+            return False
+        return obj.recipes.all()
+
+    def get_recipes_count(self, obj):
+        return self.get_recipes(obj).count()
+
+
 class SubscribeSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
@@ -113,3 +166,27 @@ class SubscribeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Вы уже подписаны на этого пользователя.')
 
         return data
+
+
+class SubscriptionsSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    subscriptions = UserSubscriberSerializer(many=True)
+
+    class Meta:
+        model = Subscription
+        fields = ['subscriptions']
+
+
+class AvatarSerializer(serializers.ModelSerializer):
+    avatar = Base64ImageField()
+
+    class Meta:
+        model = CustomUser
+        fields = ('avatar',)
+
+    def update(self, instance, validated_data):
+        avatar = validated_data.get('avatar')
+        if avatar is not None:
+            instance.avatar = avatar
+            instance.save()
+        return instance

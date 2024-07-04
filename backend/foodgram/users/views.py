@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 
-from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer
+from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer
 from .models import Subscription
 from api.permissions import IsAuthorOrReadOnly
 
@@ -42,6 +42,13 @@ class UserRegistrationView(UserViewSet):
     def me(self, request, *args, **kwargs):
         current_user = request.user
         serializer = self.get_serializer(current_user)
+        return Response(serializer.data)
+
+    @action(methods=['get'], detail=False)
+    def subscriptions(self, request, *args, **kwargs):
+        current_user = request.user
+        subscriptions = current_user.subscriptions.all()
+        serializer = SubscribeSerializer(subscriptions, many=True)
         return Response(serializer.data)
 
 
@@ -86,15 +93,12 @@ class SubscribeViewSet(viewsets.ModelViewSet):
 class AvatarView(APIView):
     permission_classes = (IsAuthorOrReadOnly,)
 
-    def put(self, request,  *args,  **kwargs):
-        serializer = UserSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        serializer = AvatarSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
         user = request.user
