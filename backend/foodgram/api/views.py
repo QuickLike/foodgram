@@ -1,49 +1,26 @@
 from django.contrib.auth import get_user_model
-from django.shortcuts import render, get_object_or_404
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-from djoser.views import UserViewSet
-from djoser.compat import get_user_email
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, generics, status, viewsets, views, mixins
-from rest_framework.decorators import action, permission_classes
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.mixins import CreateModelMixin, DestroyModelMixin
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status, viewsets
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
-from rest_framework.viewsets import GenericViewSet
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
-from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 from rest_framework.response import Response
 
 from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
-from .serializers import FavouriteSerializer, IngredientSerializer, ReceiptSerializer, ReceiptCreateSerializer, ShoppingCartSerializer, TagSerializer, TokenSerializer
+from .serializers import (
+    FavouriteSerializer,
+    IngredientSerializer,
+    ReceiptSerializer,
+    ReceiptCreateSerializer,
+    ShoppingCartSerializer,
+    TagSerializer
+)
 from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Tag
 
 
 User = get_user_model()
-
-
-class AvatarView(APIView):
-    permission_classes = (IsAuthorOrReadOnly,)
-
-    def put(self, request,  *args,  **kwargs):
-        serializer = UserSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, *args, **kwargs):
-        user = request.user
-        user.avatar = None
-        user.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagViewSet(IngredientTagMixin):
@@ -105,15 +82,14 @@ class ReceiptLinkViewSet(viewsets.ViewSet):
 
 class ShoppingCartViewSet(viewsets.ViewSet):
     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-    serializer_class = ShoppingCartSerializer
     http_method_names = ('post', 'delete')
 
     def create(self, request, *args, **kwargs):
         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
         shopping_cart_data = {'user': request.user.id, 'receipt': receipt.id}
-        serializer = self.get_serializer(data=shopping_cart_data, context={'request': request})
+        serializer = ShoppingCartSerializer(data=shopping_cart_data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):

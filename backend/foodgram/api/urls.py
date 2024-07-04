@@ -4,10 +4,9 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from . import views
-from users.views import UserRegistrationView, SubscribeViewSet
+from users.views import AvatarView, UserRegistrationView, SubscribeViewSet
 
 router = DefaultRouter()
-# router.register('users', UserViewSet)
 router.register('recipes', views.ReceiptViewSet)
 router.register('tags', views.TagViewSet)
 router.register('ingredients', views.IngredientViewSet)
@@ -18,7 +17,7 @@ router.register('recipes/download_shopping_cart', views.DownloadShoppingCartView
 
 
 urlpatterns = [
-    path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
+    path('users/me/avatar/', AvatarView.as_view(), name='avatar'),
     path('users/<int:user_id>/subscribe/', SubscribeViewSet.as_view({'post': 'create', 'delete': 'destroy'}), name='subscribe'),
     path('users/', UserRegistrationView.as_view({'post': 'create', 'get': 'list'}), name='user-registration'),
     path('users/me/', UserRegistrationView.as_view({'get': 'me'}), name='user-me'),
@@ -32,22 +31,3 @@ if settings.DEBUG:
         settings.MEDIA_URL,
         document_root=settings.MEDIA_ROOT
     )
-
-# Пользователи
-# GET      /api/users/               OK
-# POST     /api/users/               90%
-# GET      /api/users/{id}/          OK
-# GET      /api/users/me/            OK
-# PUT      /api/users/me/avatar/
-# DELETE   /api/users/me/avatar/
-# POST     /api/users/set_password/  OK
-# POST     /api/auth/token/login/    OK
-# POST     /api/auth/token/logout/   OK
-
-# Теги
-# GET      /api/tags/                OK
-# GET      /api/tags/{id}/           OK
-
-# Рецепты
-# GET      /api/recipes/             OK
-# POST     /api/recipes/

@@ -4,6 +4,7 @@ import re
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.base import ContentFile
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from .models import CustomUser, Subscription
 
@@ -74,4 +75,41 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class SubscribeSerializer(serializers.ModelSerializer):
-    pass
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Subscription
+        fields = ('user', 'subscribe_on')
+        validators = [
+            serializers.UniqueTogetherValidator(
+                queryset=Subscription.objects.all(),
+                fields=('user', 'subscribe_on'),
+                message='Вы уже подписаны на этого пользователя.'
+            ),
+        ]
+
+    def create(self, validated_data):
+        user = validated_data['user']
+        subscribe_on = validated_data['subscribe_on']
+        if user == subscribe_on:
+            raise serializers.ValidationError('Нельзя подписаться на самого себя.')
+
+        subscription, created = Subscription.objects.get_or_create(
+            user=user,
+            subscribe_on=subscribe_on
+        )
+        if not created:
+            raise serializers.ValidationError('Вы уже подписаны на этого пользователя.')
+        return subscription
+
+    def validate(self, data):
+        user = data['user']
+        subscribe_on = data['subscribe_on']
+
+        if user == subscribe_on:
+            raise serializers.ValidationError('Нельзя подписаться на самого себя.')
+
+        if Subscription.objects.filter(user=user, subscribe_on=subscribe_on).exists():
+            raise serializers.ValidationError('Вы уже подписаны на этого пользователя.')
+
+        return data

@@ -127,21 +127,6 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
             instance, context={'request': self.context.get('request')}).data
 
 
-class TokenSerializer(serializers.Serializer):
-    email = serializers.CharField(required=True)
-    password = serializers.CharField(required=True)
-
-    def validate(self, data):
-        email = data.get('email')
-        password = data.get('password')
-
-        user = authenticate(email=email, password=password)
-        if user is None:
-            raise serializers.ValidationError('Неправильные учетные данные')
-
-        return data
-
-
 class FavouriteSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     receipt = serializers.PrimaryKeyRelatedField(queryset=Receipt.objects.all())

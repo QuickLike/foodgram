@@ -5,10 +5,11 @@ from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.views import APIView
 
 from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer
 from .models import Subscription
-
+from api.permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
 
@@ -51,19 +52,52 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class SubscribeViewSet(viewsets.ModelViewSet):
-    http_method_names = ['post', 'delete']
     serializer_class = SubscribeSerializer
+    queryset = Subscription.objects.all()
+    http_method_names = ['post', 'delete']
+    permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         user = request.user
+        if not user.is_authenticated:
+            return Response(
+                data={'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        subscribe, create = Subscription.objects.create(user=user, subscribe_on=user_to_subscribe)
-        print(create)
-        return Response(status=status.HTTP_201_CREATED)
+        serializer = self.get_serializer(data={'user': user.id, 'subscribe_on': user_to_subscribe.id})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def destroy(self, request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                data={'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        subscribe = Subscription.objects.get(user=request.user, subscribe_on=user_to_subscribe)
-        print(subscribe)
-        subscribe.delete()
+        subscription = get_object_or_404(Subscription, user=user, subscribe_on=user_to_subscribe)
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AvatarView(APIView):
+    permission_classes = (IsAuthorOrReadOnly,)
+
+    def put(self, request,  *args,  **kwargs):
+        serializer = UserSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.avatar = None
+        user.save()
         return Response(status=status.HTTP_204_NO_CONTENT)

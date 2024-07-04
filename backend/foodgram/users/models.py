@@ -1,4 +1,4 @@
-from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import AbstractUser, BaseUserManager, models
 from django.contrib.auth.validators import ASCIIUsernameValidator
 
@@ -63,10 +63,21 @@ class Subscription(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'subscribe_on'],
                 name='unique_user_subscribe_on'
-            )
+            ),
         ]
         verbose_name = 'Подписка'
         verbose_name_plural = 'подписки'
 
+    def clean(self):
+        if self.user == self.subscribe_on:
+            raise ValidationError('Нельзя подписаться на самого себя.')
+
+        if Subscription.objects.filter(user=self.user, subscribe_on=self.subscribe_on).exists():
+            raise ValidationError('Вы уже подписаны на этого пользователя.')
+
     def __str__(self):
         return f'{self.user} {self.subscribe_on}'
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
