@@ -115,16 +115,10 @@ class UserSubscriberSerializer(serializers.ModelSerializer):
         return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
 
     def get_recipes(self, obj):
-        request = self.context['request']
-        if not request or not request.user.is_authenticated:
-            return False
-        user = request.user
-        if isinstance(user, AnonymousUser):
-            return False
         return obj.recipes.all()
 
     def get_recipes_count(self, obj):
-        return self.get_recipes(obj).count()
+        return obj.recipes.count()
 
 
 class SubscribeSerializer(serializers.ModelSerializer):
@@ -167,6 +161,10 @@ class SubscribeSerializer(serializers.ModelSerializer):
 
         return data
 
+    def to_representation(self, instance):
+        user_to_subscribe = instance.subscribe_on
+        return UserSubscriberSerializer(user_to_subscribe, context={'request': self.context.get('request')}).data
+
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
@@ -186,7 +184,8 @@ class AvatarSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         avatar = validated_data.get('avatar')
-        if avatar is not None:
-            instance.avatar = avatar
-            instance.save()
+        if avatar is None:
+            raise serializers.ValidationError('Необходимо загрузить аватар.')
+        instance.avatar = avatar
+        instance.save()
         return instance

@@ -85,7 +85,9 @@ class SubscribeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        subscription = get_object_or_404(Subscription, user=user, subscribe_on=user_to_subscribe)
+        subscription = Subscription.objects.filter(user=user, subscribe_on=user_to_subscribe)
+        if not subscription:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         subscription.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
