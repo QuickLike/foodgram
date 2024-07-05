@@ -44,6 +44,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     filterset_class = ReceiptFilter
     filter_backends = (DjangoFilterBackend,)
     http_method_names = ['get', 'post', 'patch', 'delete']
+    lookup_field = 'pk'
 
     def perform_create(self, serializer):
         serializer.save(
@@ -54,6 +55,28 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         if self.request.method not in SAFE_METHODS:
             return ReceiptCreateSerializer
         return ReceiptSerializer
+
+    @action(methods=['post', 'delete'], detail=True, url_path='shopping_cart')
+    def shopping_cart(self, request, *args, **kwargs):
+        if request.method == 'POST':
+            user = request.user
+            if not user.is_authenticated:
+                return Response(
+                    data={'detail': 'Authentication credentials were not provided.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
+            serializer = ShoppingCartSerializer(data={'user': user.id, 'receipt': receipt.id}, context={'request': request})
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        receipt = get_object_or_404(Receipt, pk=self.kwargs['pk'])
+        shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
+        if not shopping_cart_item.exists():
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        shopping_cart_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class FavouriteViewSet(viewsets.ModelViewSet):
@@ -82,32 +105,32 @@ class ReceiptLinkViewSet(viewsets.ViewSet):
     pass
 
 
-class ShoppingCartViewSet(viewsets.ModelViewSet):
-    queryset = ShoppingCart.objects.all()
-    serializer_class = ShoppingCartSerializer
-    permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-    http_method_names = ['post', 'delete']
-
-    def create(self, request, *args, **kwargs):
-        user = request.user
-        if not user.is_authenticated:
-            return Response(
-                data={'detail': 'Authentication credentials were not provided.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-        receipt = get_object_or_404(Receipt, pk=kwargs['receipt_id'])
-        serializer = self.get_serializer(data={'user': user.id, 'receipt': receipt.id})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def destroy(self, request, *args, **kwargs):
-        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-        shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
-        if not shopping_cart_item.exists():
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        shopping_cart_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+# class ShoppingCartViewSet(viewsets.ModelViewSet):
+#     queryset = ShoppingCart.objects.all()
+#     serializer_class = ShoppingCartSerializer
+#     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
+#     http_method_names = ['post', 'delete']
+#
+#     def create(self, request, *args, **kwargs):
+#         user = request.user
+#         if not user.is_authenticated:
+#             return Response(
+#                 data={'detail': 'Authentication credentials were not provided.'},
+#                 status=status.HTTP_401_UNAUTHORIZED
+#             )
+#         receipt = get_object_or_404(Receipt, pk=kwargs['receipt_id'])
+#         serializer = self.get_serializer(data={'user': user.id, 'receipt': receipt.id})
+#         serializer.is_valid(raise_exception=True)
+#         serializer.save()
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#
+#     def destroy(self, request, *args, **kwargs):
+#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
+#         shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
+#         if not shopping_cart_item.exists():
+#             return Response(status=status.HTTP_400_BAD_REQUEST)
+#         shopping_cart_item.delete()
+#         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class DownloadShoppingCartViewSet(viewsets.ViewSet):

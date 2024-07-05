@@ -12,7 +12,7 @@ router.register('tags', views.TagViewSet)
 router.register('ingredients', views.IngredientViewSet)
 router.register(r'recipes/(?P<receipt_id>\d+)/get-link', views.ReceiptLinkViewSet, basename='receipt-link')
 router.register(r'recipes/(?P<receipt_id>\d+)/favourite', views.FavouriteViewSet, basename='favourite')
-router.register(r'recipes/(?P<receipt_id>\d+)/shopping_cart', views.ShoppingCartViewSet, basename='shopping-cart')
+# router.register(r'recipes/(?P<receipt_id>\d+)/shopping_cart', views.ShoppingCartViewSet, basename='shopping-cart')
 router.register('recipes/download_shopping_cart', views.DownloadShoppingCartViewSet, basename='download-shopping-cart')
 
 urlpatterns = [
