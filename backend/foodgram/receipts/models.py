@@ -66,7 +66,6 @@ class Receipt(models.Model):
     )
     image = models.ImageField(
         upload_to='receipt/images',
-        default=None,
         null=False,
     )
     text = models.TextField(
@@ -87,6 +86,8 @@ class Receipt(models.Model):
     cooking_time = models.PositiveIntegerField(
         verbose_name='Время приготовления',
         null=False,
+        validators=[MinValueValidator(1), MaxValueValidator(100_000)],
+        default=1,
     )
     published_at = models.DateTimeField(
         verbose_name='Опубликовано',
