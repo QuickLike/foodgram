@@ -91,7 +91,7 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
     author = serializers.HiddenField(default=serializers.CurrentUserDefault())
     ingredients = ReceiptIngredientCreateSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(queryset=Tag.objects.all(), many=True, required=True)
-    image = Base64ImageField(required=False)
+    image = Base64ImageField(required=True)
 
     class Meta:
         model = Receipt
@@ -106,6 +106,8 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
         )
 
     def validate_ingredients(self, value):
+        if not value or value is None:
+            raise serializers.ValidationError("Обязательное поле 'ingredients'.")
         ingredients_ids = [ingredient_data['id'] for ingredient_data in value]
         if len(ingredients_ids) != len(set(ingredients_ids)):
             raise serializers.ValidationError("Повторяющиеся Ингредиенты не допустимы.")
@@ -115,9 +117,16 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_tags(self, tags):
+        if not tags:
+            raise serializers.ValidationError("Обязательное поле 'tags'.")
         if len(tags) != len(set(tags)):
             raise serializers.ValidationError("Повторяющиеся Теги не допустимы.")
         return tags
+
+    def validate_cooking_time(self, value):
+        if not value:
+            raise serializers.ValidationError("Обязательное поле 'cooking_time'.")
+        return value
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
@@ -143,22 +152,19 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('ingredients', None)
         tags = validated_data.pop('tags', None)
-        cooking_time = validated_data.pop('cooking_time', None)
 
-        if ingredients_data:
-            for ingredient_data in ingredients_data:
-                if not Ingredient.objects.filter(id=ingredient_data['id']).exists():
-                    raise serializers.ValidationError(f"Ингредиент с ID {ingredient_data['id']} не существует.")
-        else:
-            raise serializers.ValidationError("Обязательное поле Ингредиенты.")
+        if ingredients_data is None:
+            raise serializers.ValidationError("Обязательное поле 'ingredients'.")
+
+        if tags is None:
+            raise serializers.ValidationError("Обязательное поле 'tags'.")
+
+        for ingredient_data in ingredients_data:
+            if not Ingredient.objects.filter(id=ingredient_data['id']).exists():
+                raise serializers.ValidationError(f"Ингредиент с ID {ingredient_data['id']} не существует.")
 
         if tags is not None:
             instance.tags.set(tags)
-        else:
-            raise serializers.ValidationError("Обязательное поле Теги.")
-
-        if cooking_time is None:
-            raise serializers.ValidationError("Обязательное поле Время приготовления.")
 
         if ingredients_data is not None:
             instance.ingredientreceipt_set.all().delete()
