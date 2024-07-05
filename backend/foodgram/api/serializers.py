@@ -133,6 +133,11 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
         tags_data = validated_data.pop('tags')
         receipt = Receipt.objects.create(**validated_data)
 
+        if 'cooking_time' not in validated_data:
+            raise serializers.ValidationError("Обязательное поле 'cooking_time'.")
+
+        receipt.save()
+
         receipt.tags.set(tags_data)
 
         for ingredient_data in ingredients_data:
