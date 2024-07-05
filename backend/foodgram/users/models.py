@@ -50,12 +50,12 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='user_subscriptions',
+        related_name='subscriptions',
     )
     subscribe_on = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
-        related_name='user_subscribers',
+        related_name='subscribers',
     )
 
     class Meta:

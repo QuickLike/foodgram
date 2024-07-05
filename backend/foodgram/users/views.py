@@ -68,7 +68,7 @@ class SubscribeViewSet(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         current_user = request.user
-        subscriptions = current_user.user_subscriptions.all()
+        subscriptions = current_user.subscriptions.all()
         paginator = LimitPagination()
         page = paginator.paginate_queryset(subscriptions, request)
         serializer = SubscribeSerializer(page, many=True)

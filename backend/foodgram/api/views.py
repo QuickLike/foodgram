@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -81,14 +82,21 @@ class ReceiptLinkViewSet(viewsets.ViewSet):
     pass
 
 
-class ShoppingCartViewSet(viewsets.ViewSet):
+class ShoppingCartViewSet(viewsets.ModelViewSet):
+    queryset = ShoppingCart.objects.all()
+    serializer_class = ShoppingCartSerializer
     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
     http_method_names = ['post', 'delete']
 
     def create(self, request, *args, **kwargs):
-        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-        shopping_cart_data = {'user': request.user.id, 'receipt': receipt.id}
-        serializer = ShoppingCartSerializer(data=shopping_cart_data, context={'request': request})
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                data={'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        receipt = get_object_or_404(Receipt, pk=kwargs['receipt_id'])
+        serializer = self.get_serializer(data={'user': user.id, 'receipt': receipt.id})
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
