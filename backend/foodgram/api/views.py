@@ -38,7 +38,7 @@ class IngredientViewSet(IngredientTagMixin):
 
 
 class ReceiptViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthorOrReadOnly, )
+    permission_classes = (IsAuthorOrReadOnly,)
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
     filterset_class = ReceiptFilter
@@ -58,48 +58,78 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     @action(methods=['post', 'delete'], detail=True, url_path='shopping_cart')
     def shopping_cart(self, request, *args, **kwargs):
+        user = request.user
+        receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
+
+        if not user.is_authenticated:
+            return Response(
+                data={'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
         if request.method == 'POST':
-            user = request.user
-            if not user.is_authenticated:
-                return Response(
-                    data={'detail': 'Authentication credentials were not provided.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
-            receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
-            serializer = ShoppingCartSerializer(data={'user': user.id, 'receipt': receipt.id}, context={'request': request})
+            serializer = ShoppingCartSerializer(
+                data={'user': user.id, 'receipt': receipt.id},
+                context={'request': request}
+            )
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            shopping_cart_item = ShoppingCart.objects.filter(user=user, receipt=receipt)
+            if not shopping_cart_item.exists():
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            shopping_cart_item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
-        receipt = get_object_or_404(Receipt, pk=self.kwargs['pk'])
-        shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
-        if not shopping_cart_item.exists():
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        shopping_cart_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    @action(methods=['post', 'delete'], detail=True, url_path='favourite')
+    def favourite(self, request, *args, **kwargs):
+        user = request.user
+        receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
+
+        if not user.is_authenticated:
+            return Response(
+                data={'detail': 'Authentication credentials were not provided.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        if request.method == 'POST':
+            serializer = FavouriteSerializer(
+                data={'user': user.id, 'receipt': receipt.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            favourite = Favourite.objects.filter(user=user, receipt=receipt)
+            if not favourite.exists():
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            favourite.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class FavouriteViewSet(viewsets.ModelViewSet):
-    permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-    serializer_class = FavouriteSerializer
-    http_method_names = ('post', 'delete')
-
-    def create(self, request, *args, **kwargs):
-        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-        favourite_data = {'user': request.user.id, 'receipt': receipt.id}
-        serializer = self.get_serializer(data=favourite_data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def destroy(self, request, *args, **kwargs):
-        receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-        favourite = Favourite.objects.get(user=request.user, receipt=receipt)
-        if not favourite.exists():
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        favourite.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
+# class FavouriteViewSet(viewsets.ModelViewSet):
+#     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
+#     serializer_class = FavouriteSerializer
+#     http_method_names = ('post', 'delete')
+#
+#     def create(self, request, *args, **kwargs):
+#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
+#         favourite_data = {'user': request.user.id, 'receipt': receipt.id}
+#         serializer = self.get_serializer(data=favourite_data, context={'request': request})
+#         serializer.is_valid(raise_exception=True)
+#         self.perform_create(serializer)
+#         return Response(serializer.data, status=status.HTTP_201_CREATED)
+#
+#     def destroy(self, request, *args, **kwargs):
+#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
+#         favourite = Favourite.objects.get(user=request.user, receipt=receipt)
+#         if not favourite.exists():
+#             return Response(status=status.HTTP_400_BAD_REQUEST)
+#         favourite.delete()
+#         return Response(status=status.HTTP_204_NO_CONTENT)
+#
 
 class ReceiptLinkViewSet(viewsets.ViewSet):
     pass

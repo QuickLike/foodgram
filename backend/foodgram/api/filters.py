@@ -1,6 +1,6 @@
 import django_filters
 
-from receipts.models import Ingredient, Receipt
+from receipts.models import Ingredient, Receipt, Tag
 
 
 class IngredientFilter(django_filters.FilterSet):
@@ -20,10 +20,11 @@ class ReceiptFilter(django_filters.FilterSet):
         lookup_expr='exact',
         label='ID автора'
     )
-    tags = django_filters.CharFilter(
+    tags = django_filters.ModelMultipleChoiceFilter(
         field_name='tags__slug',
-        lookup_expr='exact',
-        label='Слаг'
+        to_field_name='slug',
+        queryset=Tag.objects.all(),
+        conjoined=False
     )
 
     class Meta:
