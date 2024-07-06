@@ -10,8 +10,7 @@ router = DefaultRouter()
 router.register('recipes', views.ReceiptViewSet)
 router.register('tags', views.TagViewSet)
 router.register('ingredients', views.IngredientViewSet)
-router.register(r'recipes/(?P<receipt_id>\d+)/get-link', views.ReceiptLinkViewSet, basename='receipt-link')
-router.register('recipes/download_shopping_cart', views.DownloadShoppingCartViewSet, basename='download-shopping-cart')
+
 
 urlpatterns = [
     path('users/me/avatar/', AvatarView.as_view(), name='avatar'),

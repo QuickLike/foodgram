@@ -1,3 +1,5 @@
+import csv
+
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -108,60 +110,30 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             favourite.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(methods=['get'], detail=True, url_path='get-link')
+    def get_link(self, request, *args, **kwargs):
+        receipt = Receipt.objects.get(pk=kwargs['pk'])
+        return Response(data={'short-link': f'https://{request.get_host()}/s/{receipt.short_link}'}, status=status.HTTP_200_OK)
 
-# class FavouriteViewSet(viewsets.ModelViewSet):
-#     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-#     serializer_class = FavouriteSerializer
-#     http_method_names = ('post', 'delete')
-#
-#     def create(self, request, *args, **kwargs):
-#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-#         favourite_data = {'user': request.user.id, 'receipt': receipt.id}
-#         serializer = self.get_serializer(data=favourite_data, context={'request': request})
-#         serializer.is_valid(raise_exception=True)
-#         self.perform_create(serializer)
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-#
-#     def destroy(self, request, *args, **kwargs):
-#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-#         favourite = Favourite.objects.get(user=request.user, receipt=receipt)
-#         if not favourite.exists():
-#             return Response(status=status.HTTP_400_BAD_REQUEST)
-#         favourite.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
-#
+    @action(methods=['get'], detail=False, url_path='download_shopping_cart')
+    def download_shopping_cart(self, request, *args, **kwargs):
+        shopping_cart = [item.receipt for item in ShoppingCart.objects.filter(user=request.user)]
+        response = Response(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="shopping_cart.csv"'
 
-class ReceiptLinkViewSet(viewsets.ViewSet):
-    pass
+        writer = csv.writer(response)
+        writer.writerow(['Название', 'Изображение', 'Описание', 'Ингредиенты', 'Теги', 'Время приготовления', 'Опубликовано', 'Ссылка'])
 
+        for item in shopping_cart:
+            writer.writerow([
+                item.name,
+                item.image,
+                item.text,
+                item.ingredients,
+                item.tags,
+                item.cooking_time,
+                item.published_at,
+                item.short_link,
+            ])
 
-# class ShoppingCartViewSet(viewsets.ModelViewSet):
-#     queryset = ShoppingCart.objects.all()
-#     serializer_class = ShoppingCartSerializer
-#     permission_classes = (IsAuthorOrReadOnly, IsAuthenticated)
-#     http_method_names = ['post', 'delete']
-#
-#     def create(self, request, *args, **kwargs):
-#         user = request.user
-#         if not user.is_authenticated:
-#             return Response(
-#                 data={'detail': 'Authentication credentials were not provided.'},
-#                 status=status.HTTP_401_UNAUTHORIZED
-#             )
-#         receipt = get_object_or_404(Receipt, pk=kwargs['receipt_id'])
-#         serializer = self.get_serializer(data={'user': user.id, 'receipt': receipt.id})
-#         serializer.is_valid(raise_exception=True)
-#         serializer.save()
-#         return Response(serializer.data, status=status.HTTP_201_CREATED)
-#
-#     def destroy(self, request, *args, **kwargs):
-#         receipt = get_object_or_404(Receipt, pk=self.kwargs['receipt_id'])
-#         shopping_cart_item = ShoppingCart.objects.filter(user=request.user, receipt=receipt)
-#         if not shopping_cart_item.exists():
-#             return Response(status=status.HTTP_400_BAD_REQUEST)
-#         shopping_cart_item.delete()
-#         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class DownloadShoppingCartViewSet(viewsets.ViewSet):
-    pass
+        return response

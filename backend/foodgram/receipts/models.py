@@ -94,17 +94,9 @@ class Receipt(models.Model):
         auto_now_add=True,
     )
     short_link = models.CharField(
-        max_length=6,
+        max_length=3,
         unique=True,
         default=''
-    )
-    is_favorited = models.BooleanField(
-        verbose_name='В избранном',
-        default=False,
-    )
-    is_in_shopping_cart = models.BooleanField(
-        verbose_name='В корзине',
-        default=False,
     )
 
     class Meta:
@@ -205,7 +197,7 @@ class ShoppingCart(models.Model):
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,
-        related_name='added_to_shopping_to_cart',
+        related_name='added_to_shopping_cart',
     )
 
     class Meta:
