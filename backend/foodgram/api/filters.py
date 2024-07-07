@@ -1,5 +1,4 @@
 from django_filters import rest_framework
-
 from receipts.models import Ingredient, Receipt, Tag
 
 
