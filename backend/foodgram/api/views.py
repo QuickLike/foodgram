@@ -84,8 +84,8 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             shopping_cart_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(methods=['post', 'delete'], detail=True, url_path='favourite')
-    def favourite(self, request, *args, **kwargs):
+    @action(methods=['post', 'delete'], detail=True, url_path='favorite')
+    def favorite(self, request, *args, **kwargs):
         user = request.user
         receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
 

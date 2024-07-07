@@ -89,7 +89,7 @@ class UserSubscriberSerializer(serializers.ModelSerializer):
     )
     is_subscribed = serializers.SerializerMethodField()
     recipes_count = serializers.SerializerMethodField()
-    recipes = UserRecipesSerializer(many=True)
+    recipes = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
@@ -115,7 +115,21 @@ class UserSubscriberSerializer(serializers.ModelSerializer):
         return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
 
     def get_recipes(self, obj):
-        return obj.recipes.all()
+        request = self.context.get('request')
+        if request is None:
+            return []
+
+        recipes_limit = request.query_params.get('recipes_limit')
+        if recipes_limit is not None:
+            try:
+                recipes_limit = int(recipes_limit)
+            except (TypeError, ValueError):
+                recipes_limit = None
+
+        if recipes_limit:
+            return UserRecipesSerializer(obj.recipes.all()[:recipes_limit], many=True).data
+
+        return UserRecipesSerializer(obj.recipes.all(), many=True).data
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
@@ -167,12 +181,21 @@ class SubscribeSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    subscriptions = UserSubscriberSerializer(many=True)
+    subscriptions = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
         fields = ['subscriptions']
+
+    def get_subscriptions(self, obj):
+        request = self.context['request']
+        user = request.user
+        subscriptions = Subscription.objects.filter(user=user)
+        return UserSubscriberSerializer(
+            [subscription.subscribe_on for subscription in subscriptions],
+            many=True,
+            context={'request': request}
+        ).data
 
 
 class AvatarSerializer(serializers.ModelSerializer):

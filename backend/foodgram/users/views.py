@@ -9,7 +9,8 @@ from rest_framework.views import APIView
 
 from .models import Subscription
 from .paginations import LimitPagination
-from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer
+from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer, \
+    SubscriptionsSerializer
 from api.permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
@@ -49,7 +50,14 @@ class UserRegistrationView(UserViewSet):
     def subscriptions(self, request, *args, **kwargs):
         current_user = request.user
         subscriptions = current_user.subscriptions.all()
-        serializer = SubscribeSerializer(subscriptions, many=True)
+        recipes_limit = request.query_params.get('recipes_limit', None)
+        context = self.get_serializer_context()
+        context.update({'recipes_limit': recipes_limit, 'request': request})
+        serializer = SubscriptionsSerializer(
+            subscriptions,
+            many=True,
+            context=context
+        )
         return Response(serializer.data)
 
 
@@ -82,7 +90,10 @@ class SubscribeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_401_UNAUTHORIZED
             )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        serializer = self.get_serializer(data={'user': user.id, 'subscribe_on': user_to_subscribe.id})
+        serializer = self.get_serializer(
+            data={'user': user.id, 'subscribe_on': user_to_subscribe.id},
+            context={'request': request}
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)

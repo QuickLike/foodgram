@@ -47,8 +47,6 @@ class ReceiptFilter(rest_framework.FilterSet):
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
-        if user.is_authenticated:
-            if value:
-                return queryset.filter(added_to_favourites__user=user)
-            return queryset.exclude(added_to_favourites__user=user)
+        if user.is_authenticated and value:
+            return queryset.filter(added_to_favourites__user=user)
         return queryset

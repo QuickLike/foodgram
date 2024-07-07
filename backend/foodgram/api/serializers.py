@@ -189,15 +189,20 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
 
 class FavouriteSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    receipt = serializers.PrimaryKeyRelatedField(queryset=Receipt.objects.all())
+    receipt = serializers.PrimaryKeyRelatedField(queryset=Receipt.objects.all(), write_only=True)
+
+    id = serializers.IntegerField(source='receipt.id', read_only=True)
+    name = serializers.CharField(source='receipt.name', read_only=True)
+    image = serializers.ImageField(source='receipt.image', read_only=True)
+    cooking_time = serializers.IntegerField(source='receipt.cooking_time', read_only=True)
 
     class Meta:
         model = Favourite
-        fields = ['id', 'user', 'receipt']
+        fields = ['id', 'name', 'image', 'cooking_time', 'user', 'receipt']
         read_only_fields = ['id']
 
     def create(self, validated_data):
-        user = self.context['request'].user
+        user = validated_data['user']
         receipt = validated_data['receipt']
         return Favourite.objects.create(user=user, receipt=receipt)
 
