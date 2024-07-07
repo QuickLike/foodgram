@@ -144,7 +144,7 @@ class TagReceipt(models.Model):
     tag = models.ForeignKey(
         Tag,
         on_delete=models.CASCADE,
-        )
+    )
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,

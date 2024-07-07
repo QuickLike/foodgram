@@ -5,11 +5,9 @@ from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
-from rest_framework.views import APIView
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.response import Response
 
-from . import permissions
 from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
 from .permissions import IsAuthorOrReadOnly
@@ -65,7 +63,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
         if not user.is_authenticated:
             return Response(
-                data={'detail': 'Authentication credentials were not provided.'},
+                data={'detail': 'Необходимо авторизоваться.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -78,7 +76,10 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
-            shopping_cart_item = ShoppingCart.objects.filter(user=user, receipt=receipt)
+            shopping_cart_item = ShoppingCart.objects.filter(
+                user=user,
+                receipt=receipt
+            )
             if not shopping_cart_item.exists():
                 return Response(status=status.HTTP_400_BAD_REQUEST)
             shopping_cart_item.delete()
@@ -91,7 +92,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
         if not user.is_authenticated:
             return Response(
-                data={'detail': 'Authentication credentials were not provided.'},
+                data={'detail': 'Необходимо авторизоваться.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
@@ -113,16 +114,36 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, *args, **kwargs):
         receipt = Receipt.objects.get(pk=kwargs['pk'])
-        return Response(data={'short-link': f'https://{request.get_host()}/s/{receipt.short_link}'}, status=status.HTTP_200_OK)
+        full_link = f'https://{request.get_host()}/s/{receipt.short_link}'
+        return Response(
+            data={'short-link': full_link},
+            status=status.HTTP_200_OK
+        )
 
     @action(methods=['get'], detail=False, url_path='download_shopping_cart')
     def download_shopping_cart(self, request, *args, **kwargs):
-        shopping_cart = [item.receipt for item in ShoppingCart.objects.filter(user=request.user)]
+        shopping_cart = [
+            item.receipt for item in ShoppingCart.objects.filter(
+                user=request.user
+            )
+        ]
         response = Response(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="shopping_cart.csv"'
+        long_line = 'attachment; filename="shopping_cart.csv"'
+        response['Content-Disposition'] = long_line
 
         writer = csv.writer(response)
-        writer.writerow(['Название', 'Изображение', 'Описание', 'Ингредиенты', 'Теги', 'Время приготовления', 'Опубликовано', 'Ссылка'])
+        writer.writerow(
+            [
+                'Название',
+                'Изображение',
+                'Описание',
+                'Ингредиенты',
+                'Теги',
+                'Время приготовления',
+                'Опубликовано',
+                'Ссылка'
+            ]
+        )
 
         for item in shopping_cart:
             writer.writerow([

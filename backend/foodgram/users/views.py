@@ -9,8 +9,13 @@ from rest_framework.views import APIView
 
 from .models import Subscription
 from .paginations import LimitPagination
-from .serializers import UserCreateSerializer, UserSerializer, SubscribeSerializer, AvatarSerializer, \
+from .serializers import (
+    UserCreateSerializer,
+    UserSerializer,
+    SubscribeSerializer,
+    AvatarSerializer,
     SubscriptionsSerializer
+)
 from api.permissions import IsAuthorOrReadOnly
 
 User = get_user_model()
@@ -22,7 +27,9 @@ class UserRegistrationView(UserViewSet):
     http_method_names = ['post', 'get']
 
     def create(self, request, *args, **kwargs):
-        serializer = UserCreateSerializer(data=request.data, context={'request': request})
+        serializer = UserCreateSerializer(
+            data=request.data, context={'request': request}
+        )
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -86,7 +93,7 @@ class SubscribeViewSet(viewsets.ModelViewSet):
         user = request.user
         if not user.is_authenticated:
             return Response(
-                data={'detail': 'Authentication credentials were not provided.'},
+                data={'detail': 'Необходимо авторизоваться.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
@@ -102,11 +109,14 @@ class SubscribeViewSet(viewsets.ModelViewSet):
         user = request.user
         if not user.is_authenticated:
             return Response(
-                data={'detail': 'Authentication credentials were not provided.'},
+                data={'detail': 'Необходимо авторизоваться.'},
                 status=status.HTTP_401_UNAUTHORIZED
             )
         user_to_subscribe = get_object_or_404(User, pk=kwargs['user_id'])
-        subscription = Subscription.objects.filter(user=user, subscribe_on=user_to_subscribe)
+        subscription = Subscription.objects.filter(
+            user=user,
+            subscribe_on=user_to_subscribe
+        )
         if not subscription:
             return Response(status=status.HTTP_400_BAD_REQUEST)
         subscription.delete()

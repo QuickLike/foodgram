@@ -1,11 +1,10 @@
-from datetime import timedelta
 from pathlib import Path
 
 from environs import Env
 
 env = Env()
 env.read_env()
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!

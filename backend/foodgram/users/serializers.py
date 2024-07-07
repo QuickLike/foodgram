@@ -1,10 +1,8 @@
 import base64
-import re
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from rest_framework.validators import UniqueTogetherValidator
 
 from .models import CustomUser, Subscription
 from receipts.models import Receipt
@@ -79,7 +77,10 @@ class UserSerializer(serializers.ModelSerializer):
         user = request.user
         if isinstance(user, AnonymousUser):
             return False
-        return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
+        return Subscription.objects.filter(
+            user=user,
+            subscribe_on=obj
+        ).exists()
 
 
 class UserSubscriberSerializer(serializers.ModelSerializer):
@@ -112,7 +113,10 @@ class UserSubscriberSerializer(serializers.ModelSerializer):
         user = request.user
         if isinstance(user, AnonymousUser):
             return False
-        return Subscription.objects.filter(user=user, subscribe_on=obj).exists()
+        return Subscription.objects.filter(
+            user=user,
+            subscribe_on=obj
+        ).exists()
 
     def get_recipes(self, obj):
         request = self.context.get('request')
@@ -127,7 +131,10 @@ class UserSubscriberSerializer(serializers.ModelSerializer):
                 recipes_limit = None
 
         if recipes_limit:
-            return UserRecipesSerializer(obj.recipes.all()[:recipes_limit], many=True).data
+            return UserRecipesSerializer(
+                obj.recipes.all()[:recipes_limit],
+                many=True
+            ).data
 
         return UserRecipesSerializer(obj.recipes.all(), many=True).data
 
@@ -153,14 +160,18 @@ class SubscribeSerializer(serializers.ModelSerializer):
         user = validated_data['user']
         subscribe_on = validated_data['subscribe_on']
         if user == subscribe_on:
-            raise serializers.ValidationError('Нельзя подписаться на самого себя.')
+            raise serializers.ValidationError(
+                detail='Нельзя подписаться на самого себя.'
+            )
 
         subscription, created = Subscription.objects.get_or_create(
             user=user,
             subscribe_on=subscribe_on
         )
         if not created:
-            raise serializers.ValidationError('Вы уже подписаны на этого пользователя.')
+            raise serializers.ValidationError(
+                detail='Вы уже подписаны на этого пользователя.'
+            )
         return subscription
 
     def validate(self, data):
@@ -168,16 +179,26 @@ class SubscribeSerializer(serializers.ModelSerializer):
         subscribe_on = data['subscribe_on']
 
         if user == subscribe_on:
-            raise serializers.ValidationError('Нельзя подписаться на самого себя.')
+            raise serializers.ValidationError(
+                detail='Нельзя подписаться на самого себя.'
+            )
 
-        if Subscription.objects.filter(user=user, subscribe_on=subscribe_on).exists():
-            raise serializers.ValidationError('Вы уже подписаны на этого пользователя.')
+        if Subscription.objects.filter(
+                user=user,
+                subscribe_on=subscribe_on
+        ).exists():
+            raise serializers.ValidationError(
+                detail='Вы уже подписаны на этого пользователя.'
+            )
 
         return data
 
     def to_representation(self, instance):
         user_to_subscribe = instance.subscribe_on
-        return UserSubscriberSerializer(user_to_subscribe, context={'request': self.context.get('request')}).data
+        return UserSubscriberSerializer(
+            user_to_subscribe,
+            context={'request': self.context.get('request')}
+        ).data
 
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
