@@ -29,9 +29,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8==6.0.0 flake8-isort==6.0.0
           pip install -r ./backend/requirements.txt
-      - name: Test with flake8 and Django tests
+      - name: Test with flake8 tests
         env:
-          POSTGRES_USER: fodgram_user
+          POSTGRES_USER: foodgram_user
           POSTGRES_PASSWORD: foodgram_password
           POSTGRES_DB: foodgram
           DB_HOST: 127.0.0.1
