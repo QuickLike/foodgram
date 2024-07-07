@@ -17,4 +17,4 @@ for i, item in enumerate(data, start=1):
 with open('formatted_ingredients.json', 'w', encoding='utf-8') as file:
     json.dump(formatted_data, file, ensure_ascii=False, indent=4)
 
-print("Фикстура успешно преобразована и сохранена в файл formatted_ingredients.json")
+print("Фикстура преобразована и сохранена в файл formatted_ingredients.json")
