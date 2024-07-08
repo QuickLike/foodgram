@@ -1,9 +1,7 @@
-import base64
-
 from django.contrib.auth.models import AnonymousUser
-from django.core.files.base import ContentFile
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
 from receipts.models import (
@@ -12,16 +10,6 @@ from receipts.models import (
 from users.models import CustomUser, Subscription
 
 User = get_user_model()
-
-
-class Base64ImageField(serializers.ImageField):
-    def to_internal_value(self, data):
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
-            ext = format.split('/')[-1]
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
-
-        return super().to_internal_value(data)
 
 
 class UserCreateSerializer(serializers.ModelSerializer):
@@ -219,6 +207,11 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
             )
         return tags
 
+    def validate_image(self, image):
+        if image is None:
+            raise serializers.ValidationError({'image': 'Обязательное поле!'})
+        return image
+
     def validate_cooking_time(self, value):
         if not value:
             raise serializers.ValidationError(
@@ -253,7 +246,6 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
 
         return receipt
 
-    @transaction.atomic
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('ingredients', None)
         tags = validated_data.pop('tags', None)
