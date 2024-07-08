@@ -41,11 +41,11 @@ class ReceiptFilter(rest_framework.FilterSet):
     def filter_is_in_shopping_cart(self, queryset, name, value):
         user = self.request.user
         if user.is_authenticated and value:
-            return queryset.filter(added_to_shopping_cart__user=user)
+            return queryset.filter(shoppingcart__user=user)
         return queryset
 
     def filter_is_favorited(self, queryset, name, value):
         user = self.request.user
         if user.is_authenticated and value:
-            return queryset.filter(added_to_favourites__user=user)
+            return queryset.filter(favourite__user=user)
         return queryset

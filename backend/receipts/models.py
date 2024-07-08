@@ -4,7 +4,9 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from constants.constants import MIN_COOKING_TIME, SHORT_LINK_LENGTH, MIN_INGREDIENTS_AMOUNT
 from users.models import CustomUser
+
 
 User = get_user_model()
 
@@ -44,8 +46,8 @@ class Ingredient(models.Model):
     )
 
     class Meta:
-        verbose_name = 'Ингредиент'
-        verbose_name_plural = 'ингредиенты'
+        verbose_name = 'Продукт'
+        verbose_name_plural = 'продукты'
 
     def __str__(self):
         return f'{self.name[:20]}, {self.measurement_unit}'
@@ -75,26 +77,25 @@ class Receipt(models.Model):
     )
     ingredients = models.ManyToManyField(
         Ingredient,
-        verbose_name='Ингредиенты',
+        verbose_name='Продукт в рецепте',
         through='IngredientReceipt',
     )
     tags = models.ManyToManyField(
         Tag,
         verbose_name='Теги',
-        through='TagReceipt',
     )
     cooking_time = models.PositiveIntegerField(
         verbose_name='Время приготовления',
         null=False,
-        validators=[MinValueValidator(1), MaxValueValidator(100_000)],
-        default=1,
+        validators=(MinValueValidator(MIN_COOKING_TIME), ),
+        default=MIN_COOKING_TIME,
     )
     published_at = models.DateTimeField(
         verbose_name='Опубликовано',
         auto_now_add=True,
     )
     short_link = models.CharField(
-        max_length=3,
+        max_length=SHORT_LINK_LENGTH,
         unique=True,
         default=''
     )
@@ -102,11 +103,11 @@ class Receipt(models.Model):
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
-        ordering = ['-published_at']
+        ordering = ('-published_at', )
 
     def save(self, *args, **kwargs):
         if not self.short_link:
-            self.short_link = str(uuid.uuid4())[:6]
+            self.short_link = str(uuid.uuid4())[:SHORT_LINK_LENGTH]
         super().save(*args, kwargs)
 
     def __str__(self):
@@ -124,8 +125,8 @@ class IngredientReceipt(models.Model):
     )
     amount = models.PositiveSmallIntegerField(
         verbose_name='Количество',
-        validators=[MinValueValidator(1), MaxValueValidator(100_000)],
-        default=1,
+        validators=(MinValueValidator(MIN_INGREDIENTS_AMOUNT), ),
+        default=MIN_INGREDIENTS_AMOUNT,
     )
 
     class Meta:
@@ -140,39 +141,26 @@ class IngredientReceipt(models.Model):
         return f'{self.ingredient} {self.receipt}'
 
 
-class TagReceipt(models.Model):
-    tag = models.ForeignKey(
-        Tag,
-        on_delete=models.CASCADE,
-    )
-    receipt = models.ForeignKey(
-        Receipt,
-        on_delete=models.CASCADE,
-    )
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['tag', 'receipt'],
-                name='unique_tag_receipt',
-            )
-        ]
-
-    def __str__(self):
-        return f'{self.tag} {self.receipt}'
-
-
-class Favourite(models.Model):
+class UserRecipeBase(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='favourites',
+        related_name='%(class)s',
     )
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,
-        related_name='added_to_favourites',
+        related_name='%(class)s',
     )
+
+    class Meta:
+        abstract = True
+
+    def __str__(self):
+        return f'{self.user} {self.receipt}'
+
+
+class Favourite(UserRecipeBase):
 
     class Meta:
         constraints = [
@@ -184,21 +172,8 @@ class Favourite(models.Model):
         verbose_name = 'Избранное'
         verbose_name_plural = 'избранные'
 
-    def __str__(self):
-        return f'{self.user} {self.receipt}'
 
-
-class ShoppingCart(models.Model):
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='shopping_cart',
-    )
-    receipt = models.ForeignKey(
-        Receipt,
-        on_delete=models.CASCADE,
-        related_name='added_to_shopping_cart',
-    )
+class ShoppingCart(UserRecipeBase):
 
     class Meta:
         constraints = [
@@ -209,6 +184,3 @@ class ShoppingCart(models.Model):
         ]
         verbose_name = 'Корзина покупок'
         verbose_name_plural = 'корзины покупок'
-
-    def __str__(self):
-        return f'{self.user} {self.receipt}'
