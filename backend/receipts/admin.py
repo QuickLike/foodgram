@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import Ingredient, Receipt, Tag
 
 
+@admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = (
         'name',
@@ -22,6 +23,7 @@ class IngredientAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = (
         'slug',
@@ -46,6 +48,7 @@ class ReceiptIngredientsInline(admin.TabularInline):
     verbose_name_plural = 'ingredients'
 
 
+@admin.register(Receipt)
 class ReceiptAdmin(admin.ModelAdmin):
     inlines = [ReceiptIngredientsInline]
     list_display = (
@@ -66,8 +69,3 @@ class ReceiptAdmin(admin.ModelAdmin):
     list_display_links = (
         'name',
     )
-
-
-admin.site.register(Ingredient, IngredientAdmin)
-admin.site.register(Receipt, ReceiptAdmin)
-admin.site.register(Tag, TagAdmin)
