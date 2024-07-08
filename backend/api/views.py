@@ -182,7 +182,7 @@ class UsersViewSet(UserViewSet):
     @action(methods=['post', 'delete'], detail=True, url_path='subscribe', permission_classes=[IsAuthenticated])
     def subscribe(self, request, *args, **kwargs):
         current_user = request.user
-        user_to_subscribe = get_object_or_404(User, pk=kwargs['pk'])
+        user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
 
         if request.method == 'POST':
             if current_user == user_to_subscribe:
