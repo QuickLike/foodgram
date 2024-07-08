@@ -181,11 +181,6 @@ class UsersViewSet(UserViewSet):
     def subscribe(self, request, *args, **kwargs):
         current_user = request.user
         if request.method == 'POST':
-            if not current_user.is_authenticated:
-                return Response(
-                    data={'detail': 'Необходимо авторизоваться.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
             user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
             serializer = SubscribeSerializer(
                 data={'user': current_user.id, 'subscribe_on': user_to_subscribe.id},
@@ -196,12 +191,6 @@ class UsersViewSet(UserViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         else:
-
-            if not current_user.is_authenticated:
-                return Response(
-                    data={'detail': 'Необходимо авторизоваться.'},
-                    status=status.HTTP_401_UNAUTHORIZED
-                )
             user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
             subscription = Subscription.objects.filter(
                 user=current_user,
