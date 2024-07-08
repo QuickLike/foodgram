@@ -367,8 +367,6 @@ class UserSubscriberSerializer(UserSerializer):
 
 
 class SubscribeSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
     class Meta:
         model = Subscription
         fields = ('user', 'subscribe_on')
@@ -379,43 +377,6 @@ class SubscribeSerializer(serializers.ModelSerializer):
                 message='Вы уже подписаны на этого пользователя.'
             ),
         ]
-
-    def create(self, validated_data):
-        user = validated_data['user']
-        subscribe_on = validated_data['subscribe_on']
-        if user == subscribe_on:
-            raise serializers.ValidationError(
-                detail='Нельзя подписаться на самого себя.'
-            )
-
-        subscription, created = Subscription.objects.get_or_create(
-            user=user,
-            subscribe_on=subscribe_on
-        )
-        if not created:
-            raise serializers.ValidationError(
-                detail='Вы уже подписаны на этого пользователя.'
-            )
-        return subscription
-
-    def validate(self, data):
-        user = data['user']
-        subscribe_on = data['subscribe_on']
-
-        if user == subscribe_on:
-            raise serializers.ValidationError(
-                detail='Нельзя подписаться на самого себя.'
-            )
-
-        if Subscription.objects.filter(
-                user=user,
-                subscribe_on=subscribe_on
-        ).exists():
-            raise serializers.ValidationError(
-                detail='Вы уже подписаны на этого пользователя.'
-            )
-
-        return data
 
     def to_representation(self, instance):
         user_to_subscribe = instance.subscribe_on

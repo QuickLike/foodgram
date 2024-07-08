@@ -182,24 +182,40 @@ class UsersViewSet(UserViewSet):
     @action(methods=['post', 'delete'], detail=True, url_path='subscribe', permission_classes=[IsAuthenticated])
     def subscribe(self, request, *args, **kwargs):
         current_user = request.user
-        if request.method == 'POST':
-            user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
-            serializer = SubscribeSerializer(
-                data={'user': current_user.id, 'subscribe_on': user_to_subscribe.id},
-                context={'request': request}
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        user_to_subscribe = get_object_or_404(User, pk=kwargs['pk'])
 
-        else:
-            user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
-            subscription = Subscription.objects.filter(
+        if request.method == 'POST':
+            if current_user == user_to_subscribe:
+                return Response(
+                    data={'detail': 'Нельзя подписаться на самого себя.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            subscription, created = Subscription.objects.get_or_create(
                 user=current_user,
                 subscribe_on=user_to_subscribe
             )
+            if not created:
+                return Response(
+                    data={'detail': 'Вы уже подписаны на этого пользователя.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            serializer = SubscribeSerializer(
+                subscription,
+                context={'request': request}
+            )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        elif request.method == 'DELETE':
+            subscription = Subscription.objects.filter(
+                user=current_user,
+                subscribe_on=user_to_subscribe
+            ).first()
             if not subscription:
-                return Response(status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    data={'detail': 'Вы не подписаны на этого пользователя.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             subscription.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
