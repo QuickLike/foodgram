@@ -7,7 +7,7 @@ from rest_framework import serializers, status
 from receipts.models import (
     Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
 )
-from users.models import CustomUser, Subscription
+from users.models import Subscription
 
 User = get_user_model()
 
@@ -20,7 +20,7 @@ class UserSerializer(DjoserUserSerializer):
     is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = DjoserUserSerializer.Meta.fields + (
             'is_subscribed',
             'avatar',
@@ -109,27 +109,27 @@ class ReceiptSerializer(serializers.ModelSerializer):
             'cooking_time'
         )
 
-    def get_is_in_shopping_cart(self, obj):
+    def get_is_in_shopping_cart(self, receipt):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
         return ShoppingCart.objects.filter(
             user=request.user,
-            receipt=obj
+            receipt=receipt
         ).exists()
 
-    def get_is_favorited(self, obj):
+    def get_is_favorited(self, receipt):
         request = self.context.get('request')
         if not request or not request.user.is_authenticated:
             return False
         return Favourite.objects.filter(
             user=request.user,
-            receipt=obj
+            receipt=receipt
         ).exists()
 
 
-class ReceiptCreateSerializer(serializers.ModelSerializer):
-    author = serializers.HiddenField(default=serializers.CurrentUserDefault())
+class ReceiptCreateUpdateSerializer(serializers.ModelSerializer):
+    author = UserSerializer(default=serializers.CurrentUserDefault())
     ingredients = ReceiptIngredientCreateSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
@@ -150,29 +150,33 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
             'author',
         )
 
-    def validate_ingredients(self, value):
-        if not value or value is None:
+    def validate_ingredients(self, ingredients):
+        if not ingredients or ingredients is None:
             raise serializers.ValidationError(
                 detail="Обязательное поле 'ingredients'."
             )
-        ingredients_ids = [ingredient_data['id'] for ingredient_data in value]
+        ingredients_ids = [ingredient_data['id'] for ingredient_data in ingredients]
+        dup_ids = [
+            id_ for id_ in ingredients_ids if ingredients_ids.count(id_) > 1
+        ]
         if len(ingredients_ids) != len(set(ingredients_ids)):
             raise serializers.ValidationError(
-                detail="Повторяющиеся Ингредиенты не допустимы."
+                detail=f"Повторяющиеся Ингредиенты недопустимы.\n{dup_ids}"
             )
         for ingredient_id in ingredients_ids:
             if not Ingredient.objects.filter(id=ingredient_id).exists():
                 raise serializers.ValidationError(
                     detail=f"Ингредиент с ID {ingredient_id} не существует."
                 )
-        return value
+        return ingredients
 
     def validate_tags(self, tags):
         if not tags:
             raise serializers.ValidationError("Обязательное поле 'tags'.")
+        duplicate_tags = [tag for tag in tags if tags.count(tag) > 1]
         if len(tags) != len(set(tags)):
             raise serializers.ValidationError(
-                detail="Повторяющиеся Теги не допустимы."
+                detail=f"Повторяющиеся Теги не допустимы.\n{duplicate_tags}"
             )
         return tags
 
@@ -181,12 +185,12 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({'image': 'Обязательное поле!'})
         return image
 
-    def validate_cooking_time(self, value):
-        if not value:
+    def validate_cooking_time(self, cooking_time):
+        if not cooking_time:
             raise serializers.ValidationError(
                 detail="Обязательное поле 'cooking_time'."
             )
-        return value
+        return cooking_time
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
@@ -202,16 +206,15 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
 
         receipt.tags.set(tags_data)
 
-        for ingredient_data in ingredients_data:
-            ingredient = Ingredient.objects.get(id=ingredient_data['id'])
-            ingr_receipt, created = IngredientReceipt.objects.get_or_create(
-                receipt=receipt,
-                ingredient=ingredient,
-                defaults={'amount': ingredient_data['amount']}
-            )
-            if not created:
-                ingr_receipt.amount = ingredient_data['amount']
-                ingr_receipt.save()
+        IngredientReceipt.objects.bulk_create(
+            [
+                IngredientReceipt(
+                    receipt=receipt,
+                    ingredient=Ingredient.objects.get(id=ingredient['id']),
+                    amount=ingredient['amount']
+                )
+                for ingredient in ingredients_data]
+        )
 
         return receipt
 
@@ -229,28 +232,32 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
                 detail="Обязательное поле 'tags'."
             )
 
+        invalid_ingredients = []
         for ingredient_data in ingredients_data:
             ingredient_id = ingredient_data['id']
             if not Ingredient.objects.filter(
                     id=ingredient_id
             ).exists():
-                raise serializers.ValidationError(
-                    detail=f"Ингредиент с ID {ingredient_id} не существует."
-                )
+                invalid_ingredients.append(ingredient_id)
+        if invalid_ingredients:
+            raise serializers.ValidationError(
+                detail=f"Ингредиентов с ID {invalid_ingredients} не существует."
+            )
 
         if tags is not None:
             instance.tags.set(tags)
 
         if ingredients_data is not None:
             instance.ingredientreceipt_set.all().delete()
-            for ingredient_data in ingredients_data:
-                IngredientReceipt.objects.create(
-                    receipt=instance,
-                    ingredient=Ingredient.objects.get(
-                        id=ingredient_data['id']
-                    ),
-                    amount=ingredient_data['amount']
-                )
+            IngredientReceipt.objects.bulk_create(
+                [
+                    IngredientReceipt(
+                        receipt=instance,
+                        ingredient=Ingredient.objects.get(id=ingredient['id']),
+                        amount=ingredient['amount']
+                    )
+                    for ingredient in ingredients_data]
+            )
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -259,8 +266,11 @@ class ReceiptCreateSerializer(serializers.ModelSerializer):
         ).data
 
 
-class FavouriteSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+class FavouriteShoppingCartSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        write_only=True
+    )
     receipt = serializers.PrimaryKeyRelatedField(
         queryset=Receipt.objects.all(),
         write_only=True
@@ -275,14 +285,15 @@ class FavouriteSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        model = Favourite
         fields = ['id', 'name', 'image', 'cooking_time', 'user', 'receipt']
         read_only_fields = ['id']
 
-    def create(self, validated_data):
-        user = validated_data['user']
-        receipt = validated_data['receipt']
-        return Favourite.objects.create(user=user, receipt=receipt)
+
+class FavouriteSerializer(FavouriteShoppingCartSerializer):
+
+    class Meta:
+        model = Favourite
+        fields = FavouriteShoppingCartSerializer.Meta.fields
 
     def validate(self, data):
         user = data['user']
@@ -297,30 +308,11 @@ class FavouriteSerializer(serializers.ModelSerializer):
         return data
 
 
-class ShoppingCartSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    receipt = serializers.PrimaryKeyRelatedField(
-        queryset=Receipt.objects.all(),
-        write_only=True
-    )
-
-    id = serializers.IntegerField(source='receipt.id', read_only=True)
-    name = serializers.CharField(source='receipt.name', read_only=True)
-    image = serializers.ImageField(source='receipt.image', read_only=True)
-    cooking_time = serializers.IntegerField(
-        source='receipt.cooking_time',
-        read_only=True
-    )
+class ShoppingCartSerializer(FavouriteShoppingCartSerializer):
 
     class Meta:
         model = ShoppingCart
-        fields = ['id', 'name', 'image', 'cooking_time', 'user', 'receipt']
-        read_only_fields = ['id']
-
-    def create(self, validated_data):
-        user = validated_data['user']
-        receipt = validated_data['receipt']
-        return ShoppingCart.objects.create(user=user, receipt=receipt)
+        fields = FavouriteShoppingCartSerializer.Meta.fields
 
     def validate(self, data):
         user = data['user']
@@ -347,7 +339,7 @@ class UserSubscriberSerializer(UserSerializer):
     recipes = serializers.SerializerMethodField()
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = UserSerializer.Meta.fields + (
             'recipes',
             'recipes_count',
@@ -369,7 +361,8 @@ class UserSubscriberSerializer(UserSerializer):
 class SubscribeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
-        fields = ('user', 'subscribe_on')
+        fields = ('id', 'user', 'subscribe_on')
+        read_only_fields = ('id',)
         validators = [
             serializers.UniqueTogetherValidator(
                 queryset=Subscription.objects.all(),
@@ -395,8 +388,8 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
 
     def get_subscriptions(self, obj):
         request = self.context['request']
-        user = request.user
-        subscriptions = Subscription.objects.filter(user=user)
+        limit = int(request.GET.get('limit', 10 ** 10))
+        subscriptions = request.user.subscriptions.all()[:limit]
         return UserSubscriberSerializer(
             [subscription.subscribe_on for subscription in subscriptions],
             many=True,
@@ -408,7 +401,7 @@ class AvatarSerializer(serializers.ModelSerializer):
     avatar = Base64ImageField()
 
     class Meta:
-        model = CustomUser
+        model = User
         fields = ('avatar',)
 
     def update(self, instance, validated_data):

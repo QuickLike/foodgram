@@ -1,37 +1,5 @@
 [
     {
-        "model": "receipts.tag",
-        "pk": 1,
-        "fields": {
-            "name": "абрикосовое",
-            "slug": "abrikosovoe"
-        }
-    },
-    {
-        "model": "receipts.tag",
-        "pk": 2,
-        "fields": {
-            "name": "варенье",
-            "slug": "varenie"
-        }
-    },
-    {
-        "model": "receipts.tag",
-        "pk": 3,
-        "fields": {
-            "name": "еда",
-            "slug": "eda"
-        }
-    },
-    {
-        "model": "receipts.tag",
-        "pk": 4,
-        "fields": {
-            "name": "вода",
-            "slug": "voda"
-        }
-    },
-    {
         "model": "receipts.ingredient",
         "pk": 1,
         "fields": {

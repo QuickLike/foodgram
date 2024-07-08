@@ -1,9 +1,12 @@
+import re
+
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import AbstractUser, BaseUserManager, models
-from django.contrib.auth.validators import ASCIIUsernameValidator
+
+from constants.constants import MAX_USERNAME_LENGTH
 
 
-class CustomUserManager(BaseUserManager):
+class UserManager(BaseUserManager):
     def create_user(
             self,
             email,
@@ -44,42 +47,52 @@ class CustomUserManager(BaseUserManager):
         )
 
 
-class CustomUser(AbstractUser):
-    username_validator = ASCIIUsernameValidator()
+class MyUser(AbstractUser):
     username = models.CharField(
-        max_length=50,
+        max_length=MAX_USERNAME_LENGTH,
         unique=True,
-        null=False,
-        validators=[username_validator],
     )
     email = models.EmailField(
         unique=True,
-        null=False
     )
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
-    is_subscribed = models.BooleanField(default=False)
     avatar = models.ImageField(
         upload_to='users/avatars',
         blank=True,
     )
 
-    objects = CustomUserManager()
-
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+        ordering = ('username',)
+
+    def clean(self):
+        super().clean()
+        if self.username == 'me':
+            raise ValidationError(
+                message='Имя пользователя не может быть "me".'
+            )
+        if not re.fullmatch(pattern=r'^[w.@+-]+Z', string=str(self.username)):
+            raise ValidationError(
+                message=('Имя пользователя должно содержать только ' +
+                         'буквы, цифры, точки, дефисы, подчеркивания и знаки плюса.')
+            )
 
 
 class Subscription(models.Model):
     user = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name='subscriptions',
-    )
-    subscribe_on = models.ForeignKey(
-        CustomUser,
+        MyUser,
         on_delete=models.CASCADE,
         related_name='subscribers',
+    )
+    subscribe_on = models.ForeignKey(
+        MyUser,
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
     )
 
     class Meta:
@@ -103,7 +116,3 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f'{self.user} {self.subscribe_on}'
-
-    def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)

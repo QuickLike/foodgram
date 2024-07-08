@@ -1,11 +1,10 @@
 import uuid
 
 from django.contrib.auth import get_user_model
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MinValueValidator
 from django.db import models
 
 from constants.constants import MIN_COOKING_TIME, SHORT_LINK_LENGTH, MIN_INGREDIENTS_AMOUNT
-from users.models import CustomUser
 
 
 User = get_user_model()
@@ -41,7 +40,7 @@ class Ingredient(models.Model):
     )
     measurement_unit = models.CharField(
         max_length=16,
-        verbose_name='Единица измерения',
+        verbose_name='Мера',
         null=False,
     )
 
@@ -55,7 +54,7 @@ class Ingredient(models.Model):
 
 class Receipt(models.Model):
     author = models.ForeignKey(
-        CustomUser,
+        User,
         on_delete=models.CASCADE,
         related_name='recipes',
         verbose_name='Автор',
@@ -103,6 +102,7 @@ class Receipt(models.Model):
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
+
         ordering = ('-published_at', )
 
     def save(self, *args, **kwargs):

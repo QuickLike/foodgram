@@ -13,6 +13,5 @@ router.register('users', views.UsersViewSet, basename='users')
 urlpatterns = [
     path('users/me/avatar/', views.AvatarView.as_view(), name='avatar'),
     path('', include(router.urls)),
-    path('', include('djoser.urls')),
     path('auth/', include('djoser.urls.authtoken')),
 ]
