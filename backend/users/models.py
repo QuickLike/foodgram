@@ -78,8 +78,11 @@ class MyUser(AbstractUser):
             )
         if not re.fullmatch(pattern=r'^[w.@+-]+Z', string=str(self.username)):
             raise ValidationError(
-                message=('Имя пользователя должно содержать только ' +
-                         'буквы, цифры, точки, дефисы, подчеркивания и знаки плюса.')
+                message=(
+                    'Имя пользователя должно содержать только '
+                    'буквы, цифры, точки, дефисы,'
+                    'подчеркивания и знаки плюса.'
+                )
             )
 
 

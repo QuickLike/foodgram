@@ -1,5 +1,3 @@
-import csv
-from datetime import datetime
 from io import BytesIO
 
 from django.contrib.auth import get_user_model
@@ -24,9 +22,17 @@ from .serializers import (
     ShoppingCartSerializer,
     TagSerializer,
     SubscribeSerializer,
-    AvatarSerializer, SubscriptionsSerializer, UserSubscriberSerializer
+    AvatarSerializer,
+    UserSubscriberSerializer
 )
-from receipts.models import Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
+from receipts.models import (
+    Favourite,
+    Ingredient,
+    IngredientReceipt,
+    Receipt,
+    ShoppingCart,
+    Tag
+)
 from users.models import Subscription
 
 
@@ -88,17 +94,41 @@ class ReceiptViewSet(viewsets.ModelViewSet):
                 receipt=receipt
             )
             if not model_item.exists():
-                return Response(status=status.HTTP_400_BAD_REQUEST)  # Код ошибки должен быть 400, а не 404
+                return Response(
+                    status=status.HTTP_400_BAD_REQUEST
+                )   # Код ошибки должен быть 400, а не 404
             model_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(methods=['post', 'delete'], detail=True, url_path='shopping_cart', permission_classes=[IsAuthenticated])
+    @action(
+        methods=['post', 'delete'],
+        detail=True,
+        url_path='shopping_cart',
+        permission_classes=[IsAuthenticated]
+    )
     def shopping_cart(self, request, *args, **kwargs):
-        return self.__add_to(request, ShoppingCartSerializer, ShoppingCart,  *args,  **kwargs)
+        return self.__add_to(
+            request,
+            ShoppingCartSerializer,
+            ShoppingCart,
+            *args,
+            **kwargs
+        )
 
-    @action(methods=['post', 'delete'], detail=True, url_path='favorite', permission_classes=[IsAuthenticated])
+    @action(
+        methods=['post', 'delete'],
+        detail=True,
+        url_path='favorite',
+        permission_classes=[IsAuthenticated]
+    )
     def favorite(self, request, *args, **kwargs):
-        return self.__add_to(request, FavouriteSerializer, Favourite, *args, **kwargs)
+        return self.__add_to(
+            request,
+            FavouriteSerializer,
+            Favourite,
+            *args,
+            **kwargs
+        )
 
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, *args, **kwargs):
@@ -118,7 +148,8 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         )
         shopping_list = [f"Список покупок {request.user.username}"]
         shopping_list.extend(
-            f'{ing.ingredient.name}: {ing.amount} {ing.ingredient.measurement_unit}'
+            (f'{ing.ingredient.name}:'
+             ' {ing.amount} {ing.ingredient.measurement_unit}')
             for ing in ings
         )
         shopping_list = "\n".join(shopping_list)
@@ -132,22 +163,45 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 class UsersViewSet(UserViewSet):
     pagination_class = LimitPagination
 
-    @action(methods=['get'], detail=False, url_path='me', permission_classes=[IsAuthenticated])
+    @action(
+        methods=['get'],
+        detail=False,
+        url_path='me',
+        permission_classes=[IsAuthenticated]
+    )
     def me(self, request, *args, **kwargs):
         return super().me(request, *args, **kwargs)
 
-    @action(methods=['get'], detail=False, url_path='subscriptions', permission_classes=[IsAuthenticated])
+    @action(
+        methods=['get'],
+        detail=False,
+        url_path='subscriptions',
+        permission_classes=[IsAuthenticated]
+    )
     def subscriptions(self, request, *args, **kwargs):
         queryset = User.objects.filter(following__follower=request.user)
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = UserSubscriberSerializer(page, many=True, context={'request': request})
+            serializer = UserSubscriberSerializer(
+                page,
+                many=True,
+                context={'request': request}
+            )
             return self.get_paginated_response(serializer.data)
 
-        serializer = UserSubscriberSerializer(queryset, many=True, context={'request': request})
+        serializer = UserSubscriberSerializer(
+            queryset,
+            many=True,
+            context={'request': request}
+        )
         return Response(serializer.data)
 
-    @action(methods=['post', 'delete'], detail=True, url_path='subscribe', permission_classes=[IsAuthenticated])
+    @action(
+        methods=['post', 'delete'],
+        detail=True,
+        url_path='subscribe',
+        permission_classes=[IsAuthenticated]
+    )
     def subscribe(self, request, *args, **kwargs):
         current_user = request.user
         user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])

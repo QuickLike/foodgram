@@ -155,7 +155,9 @@ class ReceiptCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 detail="Обязательное поле 'ingredients'."
             )
-        ingredients_ids = [ingredient_data['id'] for ingredient_data in ingredients]
+        ingredients_ids = [
+            ingredient_data['id'] for ingredient_data in ingredients
+        ]
         dup_ids = [
             id_ for id_ in ingredients_ids if ingredients_ids.count(id_) > 1
         ]
@@ -241,7 +243,7 @@ class ReceiptCreateUpdateSerializer(serializers.ModelSerializer):
                 invalid_ingredients.append(ingredient_id)
         if invalid_ingredients:
             raise serializers.ValidationError(
-                detail=f"Ингредиентов с ID {invalid_ingredients} не существует."
+                detail=f"Ингредиентов {invalid_ingredients} не существует."
             )
 
         if tags is not None:
@@ -352,7 +354,10 @@ class UserSubscriberSerializer(UserSerializer):
 
         recipes_limit = int(request.GET.get('recipes_limit', 10**10))
 
-        return UserRecipesSerializer(user.recipes.all()[:recipes_limit], many=True).data
+        return UserRecipesSerializer(
+            user.recipes.all()[:recipes_limit],
+            many=True
+        ).data
 
     def get_recipes_count(self, user):
         return user.recipes.count()
