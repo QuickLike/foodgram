@@ -3,13 +3,16 @@ import csv
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import SAFE_METHODS
+from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .filters import IngredientFilter, ReceiptFilter
 from .mixins import IngredientTagMixin
+from .paginations import LimitPagination
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (
     FavouriteSerializer,
@@ -17,10 +20,10 @@ from .serializers import (
     ReceiptSerializer,
     ReceiptCreateSerializer,
     ShoppingCartSerializer,
-    TagSerializer
+    TagSerializer, UserCreateSerializer, UserSerializer, SubscriptionsSerializer, SubscribeSerializer, AvatarSerializer
 )
 from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Tag
-
+from users.models import Subscription
 
 User = get_user_model()
 
@@ -158,3 +161,70 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             ])
 
         return response
+
+
+class UsersViewSet(UserViewSet):
+
+    @action(methods=['get'], detail=False, url_path='me', permission_classes=[IsAuthenticated])
+    def me(self, request, *args, **kwargs):
+        return super().me(request, *args, **kwargs)
+
+    @action(methods=['get'], detail=False, url_path='subscriptions', permission_classes=[IsAuthenticated])
+    def subscriptions(self, request, *args, **kwargs):
+        subscriptions = request.user.subscriptions.all()
+        paginator = LimitPagination()
+        page = paginator.paginate_queryset(subscriptions, request)
+        serializer = SubscribeSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    @action(methods=['post', 'delete'], detail=True, url_path='subscribe', permission_classes=[IsAuthenticated])
+    def subscribe(self, request, *args, **kwargs):
+        current_user = request.user
+        if request.method == 'POST':
+            if not current_user.is_authenticated:
+                return Response(
+                    data={'detail': 'Необходимо авторизоваться.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
+            serializer = SubscribeSerializer(
+                data={'user': current_user.id, 'subscribe_on': user_to_subscribe.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        else:
+
+            if not current_user.is_authenticated:
+                return Response(
+                    data={'detail': 'Необходимо авторизоваться.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
+            subscription = Subscription.objects.filter(
+                user=current_user,
+                subscribe_on=user_to_subscribe
+            )
+            if not subscription:
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            subscription.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AvatarView(APIView):
+    permission_classes = (IsAuthorOrReadOnly,)
+
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        serializer = AvatarSerializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.avatar = None
+        user.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
