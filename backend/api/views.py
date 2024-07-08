@@ -24,7 +24,7 @@ from .serializers import (
     ShoppingCartSerializer,
     TagSerializer,
     SubscribeSerializer,
-    AvatarSerializer, SubscriptionsSerializer
+    AvatarSerializer, SubscriptionsSerializer, UserSubscriberSerializer
 )
 from receipts.models import Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
 from users.models import Subscription
@@ -138,15 +138,14 @@ class UsersViewSet(UserViewSet):
 
     @action(methods=['get'], detail=False, url_path='subscriptions', permission_classes=[IsAuthenticated])
     def subscriptions(self, request, *args, **kwargs):
-        subscriptions = request.user.subscriptions.all()
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(subscriptions, request)
-        serializer = SubscriptionsSerializer(
-            page,
-            many=True,
-            context={'request': request}
-        )
-        return paginator.get_paginated_response(serializer.data)
+        queryset = User.objects.filter(following__follower=request.user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = UserSubscriberSerializer(page, many=True, context={'request': request})
+            return self.get_paginated_response(serializer.data)
+
+        serializer = UserSubscriberSerializer(queryset, many=True, context={'request': request})
+        return Response(serializer.data)
 
     @action(methods=['post', 'delete'], detail=True, url_path='subscribe', permission_classes=[IsAuthenticated])
     def subscribe(self, request, *args, **kwargs):
@@ -161,8 +160,8 @@ class UsersViewSet(UserViewSet):
                 )
 
             subscription, created = Subscription.objects.get_or_create(
-                user=current_user,
-                subscribe_on=user_to_subscribe
+                follower=current_user,
+                following=user_to_subscribe
             )
             if not created:
                 return Response(
@@ -177,8 +176,8 @@ class UsersViewSet(UserViewSet):
 
         elif request.method == 'DELETE':
             subscription = Subscription.objects.filter(
-                user=current_user,
-                subscribe_on=user_to_subscribe
+                follower=current_user,
+                following=user_to_subscribe
             ).first()
             if not subscription:
                 return Response(

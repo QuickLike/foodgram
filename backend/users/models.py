@@ -84,35 +84,35 @@ class MyUser(AbstractUser):
 
 
 class Subscription(models.Model):
-    user = models.ForeignKey(
+    follower = models.ForeignKey(
         MyUser,
         on_delete=models.CASCADE,
-        related_name='subscribers',
+        related_name='follower',
     )
-    subscribe_on = models.ForeignKey(
+    following = models.ForeignKey(
         MyUser,
         on_delete=models.CASCADE,
-        related_name='subscriptions',
+        related_name='following',
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['user', 'subscribe_on'],
-                name='unique_user_subscribe_on'
+                fields=['follower', 'following'],
+                name='unique_follower_following'
             ),
         ]
         verbose_name = 'Подписка'
         verbose_name_plural = 'подписки'
 
     def clean(self):
-        if self.user == self.subscribe_on:
+        if self.follower == self.following:
             raise ValidationError('Нельзя подписаться на самого себя.')
 
         if Subscription.objects.filter(
-                user=self.user, subscribe_on=self.subscribe_on
+                follower=self.follower, following=self.following
         ).exists():
             raise ValidationError('Вы уже подписаны на этого пользователя.')
 
     def __str__(self):
-        return f'{self.user} {self.subscribe_on}'
+        return f'{self.follower} {self.following}'

@@ -14,17 +14,17 @@ class UserAdmin(UserAdmin):
 @admin.register(Subscription)
 class SubscriptionsAdmin(admin.ModelAdmin):
     list_display = (
-        'user',
-        'subscribe_on',
+        'follower',
+        'following',
     )
     search_fields = (
-        'user',
-        'subscribe_on',
+        'follower',
+        'following',
     )
     list_filter = (
-        'user',
-        'subscribe_on',
+        'follower',
+        'following',
     )
     list_display_links = (
-        'user',
+        'follower',
     )

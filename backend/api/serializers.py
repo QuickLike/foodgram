@@ -26,7 +26,7 @@ class UserSerializer(DjoserUserSerializer):
             'avatar',
         )
 
-    def get_is_subscribed(self, subscribe_on):
+    def get_is_subscribed(self, following):
         request = self.context['request']
         if not request or not request.user.is_authenticated:
             return False
@@ -34,8 +34,8 @@ class UserSerializer(DjoserUserSerializer):
         if isinstance(user, AnonymousUser):
             return False
         return Subscription.objects.filter(
-            user=user,
-            subscribe_on=subscribe_on
+            follower=user,
+            following=following
         ).exists()
 
 
@@ -372,7 +372,7 @@ class SubscribeSerializer(serializers.ModelSerializer):
         ]
 
     def to_representation(self, instance):
-        user_to_subscribe = instance.subscribe_on
+        user_to_subscribe = instance.following
         return UserSubscriberSerializer(
             user_to_subscribe,
             context={'request': self.context.get('request')}
@@ -388,10 +388,10 @@ class SubscriptionsSerializer(serializers.ModelSerializer):
 
     def get_subscriptions(self, obj):
         request = self.context['request']
-        limit = int(request.GET.get('limit', 10 ** 10))
-        subscriptions = request.user.subscriptions.all()[:limit]
+        user = request.user
+        subscriptions = Subscription.objects.filter(follower=user)
         return UserSubscriberSerializer(
-            [subscription.subscribe_on for subscription in subscriptions],
+            [subscription.following for subscription in subscriptions],
             many=True,
             context={'request': request}
         ).data
