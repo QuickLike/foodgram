@@ -20,7 +20,9 @@ from .serializers import (
     ReceiptSerializer,
     ReceiptCreateSerializer,
     ShoppingCartSerializer,
-    TagSerializer, UserCreateSerializer, UserSerializer, SubscriptionsSerializer, SubscribeSerializer, AvatarSerializer
+    TagSerializer,
+    SubscribeSerializer,
+    AvatarSerializer
 )
 from receipts.models import Favourite, Ingredient, Receipt, ShoppingCart, Tag
 from users.models import Subscription

@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from djoser.serializers import UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
@@ -12,33 +13,7 @@ from users.models import CustomUser, Subscription
 User = get_user_model()
 
 
-class UserCreateSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = CustomUser
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'password'
-        )
-        extra_kwargs = {'password': {'write_only': True}}
-
-    def create(self, validated_data):
-        avatar = validated_data.pop('avatar', None)
-        password = validated_data.pop('password')
-        user = CustomUser(**validated_data)
-        user.set_password(password)
-        user.save()
-        if avatar is not None:
-            user.avatar = avatar
-            user.save()
-        return user
-
-
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(UserSerializer):
     avatar = Base64ImageField(
         required=False,
         allow_null=True
@@ -47,12 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
+        fields = UserSerializer.Meta.fields + (
             'is_subscribed',
             'avatar',
         )
