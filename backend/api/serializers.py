@@ -1,7 +1,6 @@
 from django.contrib.auth.models import AnonymousUser
-from django.db import transaction
 from django.contrib.auth import get_user_model
-from djoser.serializers import UserSerializer
+from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
@@ -13,7 +12,7 @@ from users.models import CustomUser, Subscription
 User = get_user_model()
 
 
-class UserSerializer(UserSerializer):
+class UserSerializer(DjoserUserSerializer):
     avatar = Base64ImageField(
         required=False,
         allow_null=True
@@ -22,12 +21,12 @@ class UserSerializer(UserSerializer):
 
     class Meta:
         model = CustomUser
-        fields = UserSerializer.Meta.fields + (
+        fields = DjoserUserSerializer.Meta.fields + (
             'is_subscribed',
             'avatar',
         )
 
-    def get_is_subscribed(self, obj):
+    def get_is_subscribed(self, subscribe_on):
         request = self.context['request']
         if not request or not request.user.is_authenticated:
             return False
@@ -36,7 +35,7 @@ class UserSerializer(UserSerializer):
             return False
         return Subscription.objects.filter(
             user=user,
-            subscribe_on=obj
+            subscribe_on=subscribe_on
         ).exists()
 
 
@@ -343,63 +342,28 @@ class UserRecipesSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'image', 'cooking_time']
 
 
-class UserSubscriberSerializer(serializers.ModelSerializer):
-    avatar = Base64ImageField(
-        required=False,
-        allow_null=True
-    )
-    is_subscribed = serializers.SerializerMethodField()
+class UserSubscriberSerializer(UserSerializer):
     recipes_count = serializers.SerializerMethodField()
     recipes = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'is_subscribed',
+        fields = UserSerializer.Meta.fields + (
             'recipes',
             'recipes_count',
-            'avatar',
         )
 
-    def get_is_subscribed(self, obj):
-        request = self.context['request']
-        if not request or not request.user.is_authenticated:
-            return False
-        user = request.user
-        if isinstance(user, AnonymousUser):
-            return False
-        return Subscription.objects.filter(
-            user=user,
-            subscribe_on=obj
-        ).exists()
-
-    def get_recipes(self, obj):
+    def get_recipes(self, user):
         request = self.context.get('request')
         if request is None:
             return []
 
-        recipes_limit = request.query_params.get('recipes_limit')
-        if recipes_limit is not None:
-            try:
-                recipes_limit = int(recipes_limit)
-            except (TypeError, ValueError):
-                recipes_limit = None
+        recipes_limit = int(request.GET.get('recipes_limit', 10**10))
 
-        if recipes_limit:
-            return UserRecipesSerializer(
-                obj.recipes.all()[:recipes_limit],
-                many=True
-            ).data
+        return UserRecipesSerializer(user.recipes.all()[:recipes_limit], many=True).data
 
-        return UserRecipesSerializer(obj.recipes.all(), many=True).data
-
-    def get_recipes_count(self, obj):
-        return obj.recipes.count()
+    def get_recipes_count(self, user):
+        return user.recipes.count()
 
 
 class SubscribeSerializer(serializers.ModelSerializer):
