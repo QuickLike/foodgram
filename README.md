@@ -2,7 +2,7 @@
 # Проект Фудграм - это социальная сеть для любителей готовить.
 Foodgram - социальная сеть, специально созданная для любителей готовить вкусную еду. Здесь вы можете делиться своими оригинальными и неповторимыми рецептами различных блюд.
 
-## Как развернуть
+## Как развернуть на сервере
 1. Скачайте docker-compose.production.yml из репозитория https://github.com/quicklike/foodgram
 2. Создайте файл .env и добавьте в него необходимые переменные окружения
 ```
@@ -21,21 +21,22 @@ DJANGO_ALLOWED_HOSTS=<разрешенные хосты, разделенные 
 DJANGO_DB=<sqlite/postgresql>
 ```
 
-4. Запустите Dockercompose
+3. Запустите Dockercompose
 ```
 sudo docker compose -f docker-compose.production.yml pull
 sudo docker compose -f docker-compose.production.yml down
 sudo docker compose -f docker-compose.production.yml up -d
 ```
-5. Сделайте миграции и соберите статику
+4. Сделайте миграции и соберите статику
 ```
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic
 sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/ 
 ```
-6. Загрузите фикстуры
+5. Загрузите фикстуры
 ```
 sudo docker compose -f docker-compose.production.yml exec backend python manage.py loaddata data/ingredients.json
+sudo docker compose -f docker-compose.production.yml exec backend python manage.py loaddata data/tags.json
 ```
 
 ## Настройка CI/CD
@@ -50,6 +51,41 @@ SSH_PASSPHRASE - пароль ssh
 TELEGRAM_TO - id пользователя TELEGRAM
 TELEGRAM_TOKEN - TELEGRAM токен бота
 ```
+
+## Как развернуть локально
+1. Скачайте docker-compose.yml из репозитория https://github.com/quicklike/foodgram
+2. Создайте файл .env и добавьте в него необходимые переменные окружения
+```
+sudo nano .env
+```
+```
+POSTGRES_DB=<БазаДанных>
+POSTGRES_USER=<имя пользователя>
+POSTGRES_PASSWORD=<пароль>
+DB_NAME=<имя БазыДанных>
+DB_HOST=db
+DB_PORT=5432
+DJANGO_SECRET_KEY=<ключ Django>
+DJANGO_DEBUG=<True/False>
+DJANGO_ALLOWED_HOSTS=<разрешенные хосты, разделенные ЗАПЯТЫМИ ",">
+DJANGO_DB=<sqlite/postgresql>
+```
+3. Запустите Docker Сompose из корня проекта
+```
+sudo docker compose up -d
+```
+4. Сделайте миграции и соберите статику
+```
+sudo docker compose exec backend python manage.py migrate
+sudo docker compose exec backend python manage.py collectstatic
+sudo docker compose exec backend cp -r /app/collected_static/. /backend_static/static/ 
+```
+5. Загрузите фикстуры
+```
+sudo docker compose exec backend python manage.py loaddata data/ingredients.json
+sudo docker compose exec backend python manage.py loaddata data/tags.json
+```
+
 
 ## Стек
 
@@ -70,5 +106,7 @@ Frontend:
   Docker
   Docker compose
 
+# Документация доступна по ссылке: /api/docs/
 
-## Автор QuickLike https://github.com/QuickLike
+
+[Автор QuickLike](https://github.com/QuickLike)
