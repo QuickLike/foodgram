@@ -18,7 +18,7 @@ from .serializers import (
     FavouriteSerializer,
     IngredientSerializer,
     ReceiptSerializer,
-    ReceiptCreateUpdateSerializer,
+    ReceiptUpdateSerializer,
     ShoppingCartSerializer,
     TagSerializer,
     SubscribeSerializer,
@@ -73,7 +73,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.request.method not in SAFE_METHODS:
-            return ReceiptCreateUpdateSerializer
+            return ReceiptUpdateSerializer
         return ReceiptSerializer
 
     def __add_to(self, request, serializer, model, *args, **kwargs):
