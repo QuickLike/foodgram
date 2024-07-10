@@ -1,15 +1,17 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from .models import Ingredient, Receipt, Tag, IngredientReceipt
 
-from users.models import MyUser
+
+User = get_user_model()
 
 
 try:
-    admin.site.unregister(MyUser)
+    admin.site.unregister(User)
 except admin.sites.NotRegistered:
     pass
 
@@ -201,7 +203,7 @@ class HasRecipesFilter(admin.SimpleListFilter):
             return recipes.filter(recipes__isnull=True).distinct()
 
 
-@admin.register(MyUser)
+@admin.register(User)
 class UserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
         (_('Extra Fields'), {'fields': ('avatar',)}),

@@ -31,9 +31,9 @@ from receipts.models import (
     IngredientReceipt,
     Receipt,
     ShoppingCart,
+    Subscription,
     Tag
 )
-from users.models import Subscription
 
 
 User = get_user_model()
@@ -179,7 +179,7 @@ class UsersViewSet(UserViewSet):
         permission_classes=[IsAuthenticated]
     )
     def subscriptions(self, request, *args, **kwargs):
-        queryset = User.objects.filter(following__follower=request.user)
+        queryset = User.objects.filter(authors__follower=request.user)
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = UserSubscriberSerializer(

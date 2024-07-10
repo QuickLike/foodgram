@@ -1,15 +1,94 @@
+import re
 import uuid
 
-from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.contrib.auth.models import AbstractUser, models
+from django.utils.translation import gettext_lazy as _
 
 from constants.constants import (
-    MIN_COOKING_TIME, SHORT_LINK_LENGTH, MIN_INGREDIENTS_AMOUNT
+    MIN_COOKING_TIME,
+    SHORT_LINK_LENGTH,
+    MIN_INGREDIENTS_AMOUNT,
+    EMAIL_MAX_LENGTH,
+    MAX_USERNAME_LENGTH,
+    RESERVED_USERNAME
 )
 
 
-User = get_user_model()
+def validate_username(username):
+    if username == RESERVED_USERNAME:
+        raise ValidationError(
+            _(f'Имя пользователя не может быть {RESERVED_USERNAME}.')
+        )
+    invalid_chars = re.findall(r'[^a-zA-Z0-9.@+-]', username)
+    if invalid_chars:
+        raise ValidationError(
+            _('Имя пользователя должно содержать только '
+              'буквы, цифры, точки, дефисы, подчеркивания и знаки плюса. '
+              'Недопустимые символы: %(invalid_chars)s'),
+            params={'invalid_chars': ', '.join(set(invalid_chars))}
+        )
+
+
+class User(AbstractUser):
+    username = models.CharField(
+        max_length=MAX_USERNAME_LENGTH,
+        unique=True,
+        validators=[validate_username],
+        help_text=_('Required. %(max_length)d characters or fewer. Letters, digits and @/./+/-/_ only.'),
+        error_messages={
+            'unique': _("A user with that username already exists."),
+        },
+    )
+    email = models.EmailField(
+        unique=True,
+        max_length=EMAIL_MAX_LENGTH,
+    )
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    avatar = models.ImageField(
+        upload_to='users/avatars',
+        blank=True,
+    )
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+        ordering = ('username',)
+
+
+class Subscription(models.Model):
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='followers',
+    )
+    following = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='authors',
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['follower', 'following'],
+                name='unique_follower_following'
+            ),
+        ]
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'подписки'
+
+    def clean(self):
+        if self.follower == self.following:
+            raise ValidationError('Нельзя подписаться на самого себя.')
+
+    def __str__(self):
+        return f'{self.follower} {self.following}'
 
 
 class Tag(models.Model):

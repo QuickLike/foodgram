@@ -5,9 +5,8 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
 from receipts.models import (
-    Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Tag
+    Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Subscription, Tag
 )
-from users.models import Subscription
 
 User = get_user_model()
 
