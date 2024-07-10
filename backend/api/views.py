@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 
 from .filters import IngredientFilter, ReceiptFilter
 from .paginations import LimitPagination
-from .permissions import IsAuthorOrReadOnly
+from .permissions import IsAuthorOrAdminOrReadOnly
 from .serializers import (
     FavouriteSerializer,
     IngredientSerializer,
@@ -58,7 +58,7 @@ class IngredientViewSet(IngredientTagMixin):
 
 class ReceiptViewSet(viewsets.ModelViewSet):
     pagination_class = LimitPagination
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrAdminOrReadOnly,)
     queryset = Receipt.objects.all()
     serializer_class = ReceiptSerializer
     filterset_class = ReceiptFilter
@@ -243,7 +243,7 @@ class UsersViewSet(UserViewSet):
 
 
 class AvatarView(APIView):
-    permission_classes = (IsAuthorOrReadOnly,)
+    permission_classes = (IsAuthorOrAdminOrReadOnly,)
 
     def put(self, request, *args, **kwargs):
         user = request.user
