@@ -65,7 +65,7 @@ class ReceiptIngredientSerializer(serializers.ModelSerializer):
         )
 
 
-class ReceiptIngredientCreateSerializer(serializers.ModelSerializer):
+class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
 
     class Meta:
@@ -128,7 +128,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
 
 class ReceiptCreateUpdateSerializer(serializers.ModelSerializer):
     author = UserSerializer(default=serializers.CurrentUserDefault())
-    ingredients = ReceiptIngredientCreateSerializer(many=True, required=True)
+    ingredients = RecipeIngredientSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=True,
