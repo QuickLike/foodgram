@@ -1,12 +1,12 @@
-from io import BytesIO
-
 from django.contrib.auth import get_user_model
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -35,6 +35,7 @@ from receipts.models import (
     Tag
 )
 
+from receipts.constants import RESERVED_USERNAME
 
 User = get_user_model()
 
@@ -76,7 +77,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             return ReceiptUpdateSerializer
         return ReceiptSerializer
 
-    def __add_to(self, request, serializer, model, *args, **kwargs):
+    def _add_or_delete(self, request, serializer, model, *args, **kwargs):
         user = request.user
         receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
 
@@ -88,17 +89,16 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            model_item = model.objects.filter(
-                user=user,
-                receipt=receipt
-            )
-            if not model_item.exists():
-                return Response(
-                    status=status.HTTP_400_BAD_REQUEST
-                )   # Код ошибки должен быть 400, а не 404
-            model_item.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        model_item = model.objects.filter(
+            user=user,
+            receipt=receipt
+        )
+        if not model_item.exists():
+            return Response(
+                status=status.HTTP_400_BAD_REQUEST
+            )   # Код ошибки должен быть 400, а не 404
+        model_item.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         methods=['post', 'delete'],
@@ -107,7 +107,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def shopping_cart(self, request, *args, **kwargs):
-        return self.__add_to(
+        return self._add_or_delete(
             request,
             ShoppingCartSerializer,
             ShoppingCart,
@@ -122,7 +122,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def favorite(self, request, *args, **kwargs):
-        return self.__add_to(
+        return self._add_or_delete(
             request,
             FavouriteSerializer,
             Favourite,
@@ -133,7 +133,9 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, *args, **kwargs):
         receipt = Receipt.objects.get(pk=kwargs['pk'])
-        full_link = f'https://{request.get_host()}/s/{receipt.short_link}'
+        full_link = request.build_absolute_uri(
+            f'https://{request.get_host()}/s/{receipt.short_link}'
+        )
         return Response(
             data={'short-link': full_link},
             status=status.HTTP_200_OK
@@ -146,16 +148,15 @@ class ReceiptViewSet(viewsets.ModelViewSet):
                 receipt__shoppingcarts__user=request.user
             )
         )
-        shopping_list = [f"Список покупок {request.user.username}"]
+        shopping_list = [f'Список покупок {request.user.username}']
         shopping_list.extend(
             (f'{ing.ingredient.name}:'
              ' {ing.amount} {ing.ingredient.measurement_unit}')
             for ing in ings
         )
-        shopping_list = "\n".join(shopping_list)
+        shopping_list = '\n'.join(shopping_list)
         return FileResponse(
-            BytesIO(shopping_list.encode('utf-8')),
-            as_attachment=True,
+            shopping_list,
             filename='shopping_list.txt'
         )
 
@@ -163,14 +164,10 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 class UsersViewSet(UserViewSet):
     pagination_class = LimitPagination
 
-    @action(
-        methods=['get'],
-        detail=False,
-        url_path='me',
-        permission_classes=[IsAuthenticated]
-    )
-    def me(self, request, *args, **kwargs):
-        return super().me(request, *args, **kwargs)
+    def get_permissions(self):
+        if self.request.path == '/api/users/me/':
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     @action(
         methods=['get'],
@@ -203,24 +200,21 @@ class UsersViewSet(UserViewSet):
         permission_classes=[IsAuthenticated]
     )
     def subscribe(self, request, *args, **kwargs):
-        current_user = request.user
-        user_to_subscribe = get_object_or_404(User, pk=kwargs['id'])
+        author = get_object_or_404(User, pk=kwargs['id'])
 
         if request.method == 'POST':
-            if current_user == user_to_subscribe:
-                return Response(
-                    data={'detail': 'Нельзя подписаться на самого себя.'},
-                    status=status.HTTP_400_BAD_REQUEST
+            if request.user == author:
+                raise ValidationError(
+                    detail={'detail': 'Нельзя подписаться на самого себя.'},
                 )
 
             subscription, created = Subscription.objects.get_or_create(
-                follower=current_user,
-                following=user_to_subscribe
+                follower=request.user,
+                following=author
             )
             if not created:
-                return Response(
-                    data={'detail': 'Вы уже подписаны на этого пользователя.'},
-                    status=status.HTTP_400_BAD_REQUEST
+                raise ValidationError(
+                    detail={'detail': 'Вы уже подписаны на этого пользователя.'},
                 )
             serializer = SubscribeSerializer(
                 subscription,
@@ -228,18 +222,17 @@ class UsersViewSet(UserViewSet):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        elif request.method == 'DELETE':
-            subscription = Subscription.objects.filter(
-                follower=current_user,
-                following=user_to_subscribe
-            ).first()
-            if not subscription:
-                return Response(
-                    data={'detail': 'Вы не подписаны на этого пользователя.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            subscription.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        subscription = Subscription.objects.filter(
+            follower=request.user,
+            following=author
+        ).first()
+        if not subscription:
+            return Response(
+                data={'detail': 'Вы не подписаны на этого пользователя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        subscription.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AvatarView(APIView):

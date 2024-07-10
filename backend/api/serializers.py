@@ -1,11 +1,8 @@
-import collections
-
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers, status
+from rest_framework import serializers
 
 from receipts.models import (
     Favourite, Ingredient, IngredientReceipt, Receipt, ShoppingCart, Subscription, Tag
