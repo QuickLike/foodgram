@@ -20,7 +20,8 @@ class UserSerializer(DjoserUserSerializer):
 
     class Meta:
         model = User
-        fields = DjoserUserSerializer.Meta.fields + (
+        fields = (
+            *DjoserUserSerializer.Meta.fields,
             'is_subscribed',
             'avatar',
         )
@@ -30,8 +31,6 @@ class UserSerializer(DjoserUserSerializer):
         if not request or not request.user.is_authenticated:
             return False
         user = request.user
-        if isinstance(user, AnonymousUser):
-            return False
         return Subscription.objects.filter(
             follower=user,
             following=following
