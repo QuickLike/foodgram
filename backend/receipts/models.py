@@ -5,8 +5,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.contrib.auth.models import AbstractUser, models
 from django.utils.translation import gettext_lazy as _
+from shortuuid.django_fields import ShortUUIDField
 
-from constants.constants import (
+from .constants import (
     MIN_COOKING_TIME,
     SHORT_LINK_LENGTH,
     MIN_INGREDIENTS_AMOUNT,
@@ -121,7 +122,7 @@ class Ingredient(models.Model):
     )
     measurement_unit = models.CharField(
         max_length=16,
-        verbose_name='Мера',
+        verbose_name='Единица измерения',
         null=False,
     )
 
@@ -151,13 +152,12 @@ class Receipt(models.Model):
         null=False,
     )
     text = models.TextField(
-        max_length=1024,
         verbose_name='Описание',
         null=False,
     )
     ingredients = models.ManyToManyField(
         Ingredient,
-        verbose_name='Продукт в рецепте',
+        verbose_name='Продукты в рецепте',
         through='IngredientReceipt',
     )
     tags = models.ManyToManyField(
@@ -174,10 +174,9 @@ class Receipt(models.Model):
         verbose_name='Опубликовано',
         auto_now_add=True,
     )
-    short_link = models.CharField(
-        max_length=SHORT_LINK_LENGTH,
-        unique=True,
-        default=''
+    short_link = ShortUUIDField(
+        primary_key=False,
+        length=SHORT_LINK_LENGTH
     )
 
     class Meta:
@@ -185,11 +184,6 @@ class Receipt(models.Model):
         verbose_name_plural = 'рецепты'
 
         ordering = ('-published_at', )
-
-    def save(self, *args, **kwargs):
-        if not self.short_link:
-            self.short_link = str(uuid.uuid4())[:SHORT_LINK_LENGTH]
-        super().save(*args, kwargs)
 
     def __str__(self):
         return self.name[:20]
@@ -205,7 +199,7 @@ class IngredientReceipt(models.Model):
         on_delete=models.CASCADE,
     )
     amount = models.PositiveSmallIntegerField(
-        verbose_name='Количество',
+        verbose_name='Мера',
         validators=(MinValueValidator(MIN_INGREDIENTS_AMOUNT), ),
         default=MIN_INGREDIENTS_AMOUNT,
     )
@@ -226,16 +220,22 @@ class UserRecipeBase(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='%(class)s',
+        related_name='%(class)ss',
     )
     receipt = models.ForeignKey(
         Receipt,
         on_delete=models.CASCADE,
-        related_name='%(class)s',
+        related_name='%(class)ss',
     )
 
     class Meta:
         abstract = True
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'receipt'],
+                name='unique_user_%(class)',
+            )
+        ]
 
     def __str__(self):
         return f'{self.user} {self.receipt}'
@@ -244,12 +244,6 @@ class UserRecipeBase(models.Model):
 class Favourite(UserRecipeBase):
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'receipt'],
-                name='unique_user_favourites',
-            )
-        ]
         verbose_name = 'Избранное'
         verbose_name_plural = 'избранные'
 
@@ -257,11 +251,5 @@ class Favourite(UserRecipeBase):
 class ShoppingCart(UserRecipeBase):
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'receipt'],
-                name='unique_user_shopping_cart',
-            )
-        ]
         verbose_name = 'Корзина покупок'
         verbose_name_plural = 'корзины покупок'

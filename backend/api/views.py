@@ -143,7 +143,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     def download_shopping_cart(self, request, *args, **kwargs):
         ings = (
             IngredientReceipt.objects.filter(
-                receipt__shoppingcart__user=request.user
+                receipt__shoppingcarts__user=request.user
             )
         )
         shopping_list = [f"Список покупок {request.user.username}"]
