@@ -161,13 +161,16 @@ class ReceiptUpdateSerializer(serializers.ModelSerializer):
         ]
         if len(ingredients_ids) != len(set(ingredients_ids)):
             raise serializers.ValidationError(
-                detail=f"Повторяющиеся Ингредиенты недопустимы.\n{dup_ids}"
+                detail=f"Повторяющиеся продукты недопустимы.\n{dup_ids}"
             )
+        invalid_ingredients = []
         for ingredient_id in ingredients_ids:
             if not Ingredient.objects.filter(id=ingredient_id).exists():
-                raise serializers.ValidationError(
-                    detail=f"Ингредиент с ID {ingredient_id} не существует."
-                )
+                invalid_ingredients.append(ingredient_id)
+        if invalid_ingredients:
+            raise serializers.ValidationError(
+                detail=f"Продуктов с ID {invalid_ingredients} не существует."
+            )
         return ingredients
 
     def validate_tags(self, tags):
