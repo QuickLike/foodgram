@@ -96,7 +96,13 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         if not model_item.exists():
             return Response(
                 status=status.HTTP_400_BAD_REQUEST
-            )   # Код ошибки должен быть 400, а не 404
+            )
+        """
+        404 Not Found
+        Статус-код ответа должен быть 400 | AssertionError: При попытке пользователя 
+        удалить несуществующий рецепт должен вернуться ответ со статусом 400: 
+        expected 'Not Found' to deeply equal 'Bad Request'
+        """
         model_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -232,6 +238,12 @@ class UsersViewSet(UserViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         subscription.delete()
+        """
+        404 Not Found
+        Статус-код ответа должен быть 400 | AssertionError: При попытке пользователя 
+        удалить несуществующую подписку должен вернуться ответ со статусом 400: 
+        expected 'Not Found' to deeply equal 'Bad Request'
+        """
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
