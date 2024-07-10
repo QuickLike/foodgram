@@ -1,7 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
@@ -34,8 +33,6 @@ from receipts.models import (
     Subscription,
     Tag
 )
-
-from receipts.constants import RESERVED_USERNAME
 
 User = get_user_model()
 
@@ -99,8 +96,9 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             )
         """
         404 Not Found
-        Статус-код ответа должен быть 400 | AssertionError: При попытке пользователя 
-        удалить несуществующий рецепт должен вернуться ответ со статусом 400: 
+        Статус-код ответа должен быть 400 | AssertionError: При попытке
+        пользователя удалить несуществующий рецепт должен вернуться
+        ответ со статусом 400:
         expected 'Not Found' to deeply equal 'Bad Request'
         """
         model_item.delete()
@@ -220,7 +218,9 @@ class UsersViewSet(UserViewSet):
             )
             if not created:
                 raise ValidationError(
-                    detail={'detail': 'Вы уже подписаны на этого пользователя.'},
+                    detail={
+                        'detail': 'Вы уже подписаны на этого пользователя.'
+                    },
                 )
             serializer = SubscribeSerializer(
                 subscription,
@@ -240,8 +240,9 @@ class UsersViewSet(UserViewSet):
         subscription.delete()
         """
         404 Not Found
-        Статус-код ответа должен быть 400 | AssertionError: При попытке пользователя 
-        удалить несуществующую подписку должен вернуться ответ со статусом 400: 
+        Статус-код ответа должен быть 400 | AssertionError: При попытке
+        пользователя удалить несуществующую подписку должен вернуться
+        ответ со статусом 400:
         expected 'Not Found' to deeply equal 'Bad Request'
         """
         return Response(status=status.HTTP_204_NO_CONTENT)

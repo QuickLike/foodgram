@@ -1,5 +1,4 @@
 import re
-import uuid
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -37,10 +36,6 @@ class User(AbstractUser):
         max_length=MAX_USERNAME_LENGTH,
         unique=True,
         validators=[validate_username],
-        help_text=_('Required. %(max_length)d characters or fewer. Letters, digits and @/./+/-/_ only.'),
-        error_messages={
-            'unique': _("A user with that username already exists."),
-        },
     )
     email = models.EmailField(
         unique=True,
