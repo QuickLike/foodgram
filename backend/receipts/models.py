@@ -4,11 +4,9 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.contrib.auth.models import AbstractUser, models
 from django.utils.translation import gettext_lazy as _
-from shortuuid.django_fields import ShortUUIDField
 
 from .constants import (
     MIN_COOKING_TIME,
-    SHORT_LINK_LENGTH,
     MIN_INGREDIENTS_AMOUNT,
     EMAIL_MAX_LENGTH,
     MAX_USERNAME_LENGTH,
@@ -168,10 +166,6 @@ class Receipt(models.Model):
     published_at = models.DateTimeField(
         verbose_name='Опубликовано',
         auto_now_add=True,
-    )
-    short_link = ShortUUIDField(
-        primary_key=False,
-        length=SHORT_LINK_LENGTH
     )
 
     class Meta:

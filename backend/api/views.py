@@ -136,9 +136,8 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=True, url_path='get-link')
     def get_link(self, request, *args, **kwargs):
-        receipt = Receipt.objects.get(pk=kwargs['pk'])
         full_link = request.build_absolute_uri(
-            f'https://{request.get_host()}/s/{receipt.short_link}'
+            f'https://{request.get_host()}/s/{kwargs["pk"]}'
         )
         return Response(
             data={'short-link': full_link},
