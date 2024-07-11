@@ -23,6 +23,7 @@ from .serializers import (
     UserSubscriberSerializer,
     UserRecipesSerializer
 )
+from .utils import generate_shopping_list
 from receipts.models import (
     Favourite,
     Ingredient,
@@ -32,8 +33,7 @@ from receipts.models import (
     Subscription,
     Tag
 )
-
-from .utils import generate_shopping_list
+from receipts.constants import RESERVED_USERNAME
 
 User = get_user_model()
 
@@ -149,7 +149,7 @@ class UsersViewSet(UserViewSet):
     pagination_class = LimitPagination
 
     def get_permissions(self):
-        if self.request.path == '/api/users/me/':
+        if self.action == RESERVED_USERNAME:
             return [IsAuthenticated()]
         return super().get_permissions()
 
@@ -159,7 +159,7 @@ class UsersViewSet(UserViewSet):
         url_path='subscriptions',
         permission_classes=[IsAuthenticated]
     )
-    def subscriptions(self, request, *args, **kwargs):
+    def subscriptions(self, request):
         queryset = User.objects.filter(authors__follower=request.user)
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -183,7 +183,7 @@ class UsersViewSet(UserViewSet):
         url_path='subscribe',
         permission_classes=[IsAuthenticated]
     )
-    def subscribe(self, request, *args, **kwargs):
+    def subscribe(self, request, **kwargs):
         author = get_object_or_404(User, pk=kwargs['id'])
 
         if request.method == 'POST':
@@ -208,37 +208,25 @@ class UsersViewSet(UserViewSet):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        subscription = Subscription.objects.filter(
-            follower=request.user,
-            following=author
-        ).first()
-        if not subscription:
-            return Response(
-                data={'detail': 'Вы не подписаны на этого пользователя.'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        subscription.delete()
-        """
-        404 Not Found
-        Статус-код ответа должен быть 400 | AssertionError: При попытке
-        пользователя удалить несуществующую подписку должен вернуться
-        ответ со статусом 400:
-        expected 'Not Found' to deeply equal 'Bad Request'
-        """
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            model_item = get_object_or_404(Subscription, follower=request.user, following=author)
+            model_item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Http404:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
 class AvatarView(APIView):
     permission_classes = (IsAuthorOrReadOnly,)
 
-    def put(self, request, *args, **kwargs):
+    def put(self, request):
         user = request.user
         serializer = AvatarSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def delete(self, request, *args, **kwargs):
+    def delete(self, request):
         user = request.user
         user.avatar = None
         user.save()
