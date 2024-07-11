@@ -1,19 +1,20 @@
+from datetime import timedelta
+
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import Group
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from .models import Ingredient, Receipt, Tag, IngredientReceipt
+from .constants import SHORT_COOKING_TIME, MEDIUM_COOKING_TIME
 
 
 User = get_user_model()
 
-
-try:
-    admin.site.unregister(User)
-except admin.sites.NotRegistered:
-    pass
+admin.site.unregister(Group)
 
 
 @admin.register(Ingredient)
@@ -21,6 +22,7 @@ class IngredientAdmin(admin.ModelAdmin):
     list_display = (
         'name',
         'measurement_unit',
+        'recipes_count'
     )
     list_editable = (
         'measurement_unit',
@@ -35,6 +37,10 @@ class IngredientAdmin(admin.ModelAdmin):
     list_display_links = (
         'name',
     )
+
+    @admin.display(description='Рецепты')
+    def recipes_count(self, ingredient):
+        return ingredient.recipes.count()
 
 
 @admin.register(Tag)
@@ -57,10 +63,9 @@ class TagAdmin(admin.ModelAdmin):
         'slug',
     )
 
-    def recipes_count(self, user):
-        return user.reciepes.count()
-
-    recipes_count.short_description = 'Число рецептов'
+    @admin.display(description='Рецепты')
+    def recipes_count(self, tag):
+        return tag.recipes.count()
 
 
 class ReceiptIngredientsInline(admin.TabularInline):
@@ -73,20 +78,57 @@ class CookingTimeFilter(admin.SimpleListFilter):
     parameter_name = 'cooking_time'
 
     def lookups(self, request, model_admin):
+        short_count = Receipt.objects.filter(cooking_time__lte=SHORT_COOKING_TIME).count()
+        medium_count = Receipt.objects.filter(cooking_time__gt=SHORT_COOKING_TIME, cooking_time__lte=MEDIUM_COOKING_TIME).count()
+        long_count = Receipt.objects.filter(cooking_time__gt=MEDIUM_COOKING_TIME).count()
+
         return (
-            ('short', 'Быстрые (<= 15 мин)'),
-            ('medium', 'Средние (15 - 60 мин)'),
-            ('long', 'Долгие (> 60 мин)'),
+            ('short', f'Быстрые (<= {SHORT_COOKING_TIME} мин) ({short_count})'),
+            ('medium', f'Средние ({SHORT_COOKING_TIME} - {MEDIUM_COOKING_TIME} мин) ({medium_count})'),
+            ('long', f'Долгие (> {MEDIUM_COOKING_TIME} мин) ({long_count})'),
         )
 
-    def queryset(self, request, recipes):
-        if self.value() == 'short':
-            return recipes.filter(cooking_time__lte=15)
-        if self.value() == 'medium':
-            return recipes.filter(cooking_time__gt=15, cooking_time__lte=60)
-        if self.value() == 'long':
-            return recipes.filter(cooking_time__gt=60)
-        return recipes
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == 'short':
+            return queryset.filter(cooking_time__lte=SHORT_COOKING_TIME)
+        if value == 'medium':
+            return queryset.filter(cooking_time__gt=SHORT_COOKING_TIME, cooking_time__lte=MEDIUM_COOKING_TIME)
+        if value == 'long':
+            return queryset.filter(cooking_time__gt=MEDIUM_COOKING_TIME)
+        return queryset
+
+
+class PublishedDateFilter(admin.SimpleListFilter):
+    title = 'Дата публикации'
+    parameter_name = 'published_at'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('today', 'За сегодня'),
+            ('this_week', 'За эту неделю'),
+            ('this_month', 'За этот месяц'),
+            ('older', 'Старые'),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'today':
+            return queryset.filter(published_at__date=timezone.now().date())
+        elif self.value() == 'this_week':
+            start_of_week = timezone.now().date() - timedelta(days=timezone.now().weekday())
+            return queryset.filter(published_at__date__gte=start_of_week)
+        elif self.value() == 'this_month':
+            start_of_month = timezone.now().date().replace(day=1)
+            return queryset.filter(published_at__date__gte=start_of_month)
+        elif self.value() == 'older':
+            return queryset.exclude(
+                published_at__date=timezone.now().date(),
+            ).exclude(
+                published_at__date__gte=timezone.now().date() - timedelta(days=7),
+            ).exclude(
+                published_at__date__gte=timezone.now().date().replace(day=1),
+            )
+        return queryset
 
 
 @admin.register(Receipt)
@@ -109,98 +151,76 @@ class ReceiptAdmin(admin.ModelAdmin):
     list_filter = (
         'tags',
         CookingTimeFilter,
-        'published_at',
+        PublishedDateFilter,
     )
     list_display_links = (
         'name',
     )
 
+    @admin.display(description='Время приготовления в минутах')
     def cooking_time_display(self, receipt):
-        return f'{receipt.cooking_time} мин'
+        return receipt.cooking_time
 
-    cooking_time_display.short_description = 'Время приготовления'
-
+    @admin.display(description='Теги')
     def tags_display(self, receipt):
-        return ", ".join([tag.name for tag in receipt.tags.all()])
+        return "\n".join([tag.name for tag in receipt.tags.all()])
 
-    tags_display.short_description = 'Теги'
-
+    @admin.display(description='Продукты')
     def ingredients_display(self, receipt):
-        ingredients = receipt.ingredients.all()
+        ingredients_list = [
+            f'{ingredient.name}, {ingredient.measurement_unit}, {ir.amount}'
+            for ir in receipt.ingredient_list.all()
+            for ingredient in receipt.ingredients.filter(id=ir.ingredient_id)
+        ]
+        return mark_safe('<br>'.join(ingredients_list))
+
+    @admin.display(description='Картинка')
+    def image_display(self, receipt):
         return mark_safe(
-            '<br>'.join(
-                [
-                    f'{ingredient.name},'
-                    f'{ingredient.measurement_unit},'
-                    f'{ir.amount}' for ingredient, ir in zip(
-                        ingredients,
-                        receipt.ingredientreceipt_set.all()
-                    )
-                ]
-            )
+            f'<img src="{receipt.image.url}" width="50" height="50" />'
         )
 
-    ingredients_display.short_description = 'Продукты (имя, ед.изм., мера)'
 
-    def image_display(self, receipt):
-        if receipt.image:
-            return mark_safe(
-                f'<img src="{receipt.image.url}" width="50" height="50" />'
-            )
-        return 'Нет изображения'
+class BooleanFilter(admin.SimpleListFilter):
+    def lookups(self, request, model_admin):
+        return (
+            ('yes', 'Да'),
+            ('no', 'Нет'),
+        )
 
-    image_display.short_description = 'Картинка'
+    def queryset(self, request, queryset):
+        field_name = self.get_field_name()
+        if self.value() == 'yes':
+            return queryset.filter(**{field_name + '__isnull': False}).distinct()
+        elif self.value() == 'no':
+            return queryset.filter(**{field_name + '__isnull': True}).distinct()
+
+    def get_field_name(self):
+        raise NotImplementedError("Subclasses should implement this method.")
 
 
-class HasSubscriptionsFilter(admin.SimpleListFilter):
+class HasSubscriptionsFilter(BooleanFilter):
     title = 'Есть подписки'
     parameter_name = 'has_subscriptions'
 
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, subscriptions):
-        if self.value() == 'yes':
-            return subscriptions.filter(follower__isnull=False).distinct()
-        elif self.value() == 'no':
-            return subscriptions.filter(follower__isnull=True).distinct()
+    def get_field_name(self):
+        return 'follower'
 
 
-class HasSubscribersFilter(admin.SimpleListFilter):
+class HasSubscribersFilter(BooleanFilter):
     title = 'Есть подписчики'
     parameter_name = 'has_subscribers'
 
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, subscribers):
-        if self.value() == 'yes':
-            return subscribers.filter(following__isnull=False).distinct()
-        elif self.value() == 'no':
-            return subscribers.filter(following__isnull=True).distinct()
+    def get_field_name(self):
+        return 'following'
 
 
-class HasRecipesFilter(admin.SimpleListFilter):
+class HasRecipesFilter(BooleanFilter):
     title = 'Есть рецепты'
     parameter_name = 'has_recipes'
 
-    def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Да'),
-            ('no', 'Нет'),
-        )
-
-    def queryset(self, request, recipes):
-        if self.value() == 'yes':
-            return recipes.filter(recipes__isnull=False).distinct()
-        elif self.value() == 'no':
-            return recipes.filter(recipes__isnull=True).distinct()
+    def get_field_name(self):
+        return 'recipes'
 
 
 @admin.register(User)
@@ -214,18 +234,18 @@ class UserAdmin(UserAdmin):
         'subscription_count', 'subscriber_count', 'recipe_count'
     )
     list_filter = (
-        'is_staff', 'is_superuser', 'is_active', 'groups',
+        'is_staff', 'is_superuser', 'is_active',
         HasSubscriptionsFilter, HasSubscribersFilter, HasRecipesFilter
     )
 
+    @admin.display(description='Подписки')
     def subscription_count(self, user):
-        return user.follower.count()
-    subscription_count.short_description = 'Число подписок'
+        return user.followers.count()
 
+    @admin.display(description='Подписчики')
     def subscriber_count(self, user):
-        return user.following.count()
-    subscriber_count.short_description = 'Число подписчиков'
+        return user.authors.count()
 
+    @admin.display(description='Рецепты')
     def recipe_count(self, user):
         return user.recipes.count()
-    recipe_count.short_description = 'Число рецептов'
