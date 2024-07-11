@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -14,15 +14,14 @@ from .filters import IngredientFilter, ReceiptFilter
 from .paginations import LimitPagination
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (
-    FavouriteSerializer,
     IngredientSerializer,
     ReceiptSerializer,
     ReceiptUpdateSerializer,
-    ShoppingCartSerializer,
     TagSerializer,
     SubscribeSerializer,
     AvatarSerializer,
-    UserSubscriberSerializer
+    UserSubscriberSerializer,
+    UserRecipesSerializer
 )
 from receipts.models import (
     Favourite,
@@ -33,6 +32,8 @@ from receipts.models import (
     Subscription,
     Tag
 )
+
+from .utils import generate_shopping_list
 
 User = get_user_model()
 
@@ -74,35 +75,27 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             return ReceiptUpdateSerializer
         return ReceiptSerializer
 
-    def _add_or_delete(self, request, serializer, model, *args, **kwargs):
+    def _shopping_cart_or_favorite(self, request, model, **kwargs):
         user = request.user
         receipt = get_object_or_404(Receipt, pk=kwargs['pk'])
 
         if request.method == 'POST':
-            serializer = serializer(
-                data={'user': user.id, 'receipt': receipt.id},
-                context={'request': request}
+            item, is_created = model.objects.get_or_create(
+                user=user,
+                receipt=receipt
             )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+            if not is_created:
+                raise ValidationError(
+                    f'Рецепт уже добавлен!'
+                )
+            serializer = UserRecipesSerializer(receipt)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        model_item = model.objects.filter(
-            user=user,
-            receipt=receipt
-        )
-        if not model_item.exists():
-            return Response(
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        """
-        404 Not Found
-        Статус-код ответа должен быть 400 | AssertionError: При попытке
-        пользователя удалить несуществующий рецепт должен вернуться
-        ответ со статусом 400:
-        expected 'Not Found' to deeply equal 'Bad Request'
-        """
-        model_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            model_item = get_object_or_404(model, user=user, receipt=receipt)
+            model_item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Http404:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
 
     @action(
         methods=['post', 'delete'],
@@ -110,12 +103,10 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         url_path='shopping_cart',
         permission_classes=[IsAuthenticated]
     )
-    def shopping_cart(self, request, *args, **kwargs):
-        return self._add_or_delete(
+    def shopping_cart(self, request, **kwargs):
+        return self._shopping_cart_or_favorite(
             request,
-            ShoppingCartSerializer,
             ShoppingCart,
-            *args,
             **kwargs
         )
 
@@ -125,17 +116,16 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         url_path='favorite',
         permission_classes=[IsAuthenticated]
     )
-    def favorite(self, request, *args, **kwargs):
-        return self._add_or_delete(
+    def favorite(self, request, **kwargs):
+        return self._shopping_cart_or_favorite(
             request,
-            FavouriteSerializer,
             Favourite,
-            *args,
             **kwargs
         )
 
     @action(methods=['get'], detail=True, url_path='get-link')
-    def get_link(self, request, *args, **kwargs):
+    def get_link(self, request, **kwargs):
+        get_object_or_404(Receipt, pk=kwargs['pk'])
         full_link = request.build_absolute_uri(
             f'https://{request.get_host()}/s/{kwargs["pk"]}'
         )
@@ -145,23 +135,14 @@ class ReceiptViewSet(viewsets.ModelViewSet):
         )
 
     @action(methods=['get'], detail=False, url_path='download_shopping_cart')
-    def download_shopping_cart(self, request, *args, **kwargs):
-        ings = (
-            IngredientReceipt.objects.filter(
-                receipt__shoppingcarts__user=request.user
-            )
+    def download_shopping_cart(self, request):
+        shopping_list_content = generate_shopping_list(request.user)
+        response = FileResponse(
+            shopping_list_content,
+            filename='shopping_list.txt',
+            content_type='text/plain; charset=utf-8'
         )
-        shopping_list = [f'Список покупок {request.user.username}']
-        shopping_list.extend(
-            (f'{ing.ingredient.name}:'
-             ' {ing.amount} {ing.ingredient.measurement_unit}')
-            for ing in ings
-        )
-        shopping_list = '\n'.join(shopping_list)
-        return FileResponse(
-            shopping_list,
-            filename='shopping_list.txt'
-        )
+        return response
 
 
 class UsersViewSet(UserViewSet):

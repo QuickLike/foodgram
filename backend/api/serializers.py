@@ -262,64 +262,6 @@ class ReceiptUpdateSerializer(serializers.ModelSerializer):
         ).data
 
 
-class FavouriteShoppingCartSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.all(),
-        write_only=True
-    )
-    receipt = serializers.PrimaryKeyRelatedField(
-        queryset=Receipt.objects.all(),
-        write_only=True
-    )
-
-    id = serializers.IntegerField(source='receipt.id', read_only=True)
-    name = serializers.CharField(source='receipt.name', read_only=True)
-    image = serializers.ImageField(source='receipt.image', read_only=True)
-    cooking_time = serializers.IntegerField(
-        source='receipt.cooking_time',
-        read_only=True
-    )
-
-    class Meta:
-        fields = ['id', 'name', 'image', 'cooking_time', 'user', 'receipt']
-
-
-class FavouriteSerializer(FavouriteShoppingCartSerializer):
-
-    class Meta:
-        model = Favourite
-        fields = FavouriteShoppingCartSerializer.Meta.fields
-
-    def validate(self, data):
-        user = data['user']
-        receipt = data['receipt']
-
-        if Favourite.objects.filter(user=user, receipt=receipt).exists():
-            raise serializers.ValidationError(
-                detail="Рецепт уже добавлен в избранное",
-            )
-
-        return data
-
-
-class ShoppingCartSerializer(FavouriteShoppingCartSerializer):
-
-    class Meta:
-        model = ShoppingCart
-        fields = FavouriteShoppingCartSerializer.Meta.fields
-
-    def validate(self, data):
-        user = data['user']
-        receipt = data['receipt']
-
-        if ShoppingCart.objects.filter(user=user, receipt=receipt).exists():
-            raise serializers.ValidationError(
-                detail="Рецепт уже добавлен в корзину",
-            )
-
-        return data
-
-
 class UserRecipesSerializer(serializers.ModelSerializer):
 
     class Meta:
