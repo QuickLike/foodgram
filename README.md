@@ -53,50 +53,42 @@ TELEGRAM_TOKEN - TELEGRAM токен бота
 ```
 
 ## Как развернуть локально
-1. Скачайте docker-compose.yml из репозитория https://github.com/quicklike/foodgram
-2. Создайте файл .env и добавьте в него необходимые переменные окружения
+1. Клонируйте репозиторий https://github.com/quicklike/foodgram
+2. Перейдите в директорию /backend/
+3. Создайте файл .env и добавьте в него необходимые переменные окружения
 ```
-sudo nano .env
-```
-```
-POSTGRES_DB=<БазаДанных>
-POSTGRES_USER=<имя пользователя>
-POSTGRES_PASSWORD=<пароль>
-DB_NAME=<имя БазыДанных>
-DB_HOST=db
-DB_PORT=5432
 DJANGO_SECRET_KEY=<ключ Django>
 DJANGO_DEBUG=<True/False>
 DJANGO_ALLOWED_HOSTS=<разрешенные хосты, разделенные ЗАПЯТЫМИ ",">
-DJANGO_DB=<sqlite/postgresql>
+DJANGO_DB=sqlite
 ```
-3. Запустите Docker Сompose из корня проекта
+4. Примените миграции
 ```
-sudo docker compose up -d
-```
-4. Сделайте миграции и соберите статику
-```
-sudo docker compose exec backend python manage.py migrate
-sudo docker compose exec backend python manage.py collectstatic
-sudo docker compose exec backend cp -r /app/collected_static/. /backend_static/static/ 
+python manage.py migrate
+python manage.py collectstatic
 ```
 5. Загрузите фикстуры
 ```
-sudo docker compose exec backend python manage.py loaddata data/ingredients.json
-sudo docker compose exec backend python manage.py loaddata data/tags.json
+python manage.py loaddata data/formatted_ingredients.json
+python manage.py loaddata data/tags.json
+```
+6. Запустите локальный сервер
+```
+python manage.py runserver
 ```
 
 
 ## Стек
 
 Backend:
+  Python
   Django
   DRF
 
 Frontend:
-   JavaScript
-   NodeJS
-   React
+  JavaScript
+  Node.js
+  React
 
 Сервер:
   nginx
@@ -106,7 +98,6 @@ Frontend:
   Docker
   Docker compose
 
-# Документация доступна по ссылке: /api/docs/
+[Документация](https://github.com/QuickLike/foodgram/blob/main/docs/openapi-schema.yml)
 
-
-[Автор QuickLike](https://github.com/QuickLike)
+[Власов Эдуард Витальевич](https://github.com/QuickLike)
