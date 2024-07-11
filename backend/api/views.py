@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
@@ -32,7 +33,6 @@ from receipts.models import (
     Subscription,
     Tag
 )
-from receipts.constants import RESERVED_USERNAME
 
 User = get_user_model()
 
@@ -148,7 +148,7 @@ class UsersViewSet(UserViewSet):
     pagination_class = LimitPagination
 
     def get_permissions(self):
-        if self.action == RESERVED_USERNAME:
+        if self.action == settings.RESERVED_USERNAME:
             return [IsAuthenticated()]
         return super().get_permissions()
 

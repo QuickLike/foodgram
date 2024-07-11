@@ -2,6 +2,7 @@ import re
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser, models
 from django.utils.translation import gettext_lazy as _
 
@@ -10,14 +11,13 @@ from .constants import (
     MIN_INGREDIENTS_AMOUNT,
     EMAIL_MAX_LENGTH,
     MAX_USERNAME_LENGTH,
-    RESERVED_USERNAME
 )
 
 
 def validate_username(username):
-    if username == RESERVED_USERNAME:
+    if username == settings.RESERVED_USERNAME:
         raise ValidationError(
-            _(f'Имя пользователя не может быть {RESERVED_USERNAME}.')
+            _(f'Имя пользователя не может быть {settings.RESERVED_USERNAME}.')
         )
     invalid_chars = re.findall(r'[^a-zA-Z0-9.@+-]', username)
     if invalid_chars:

@@ -159,3 +159,5 @@ DJOSER = {
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'receipts.User'
+
+RESERVED_USERNAME = 'me'
