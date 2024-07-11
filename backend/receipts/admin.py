@@ -9,8 +9,13 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from .models import Ingredient, Receipt, Tag, IngredientReceipt
-from .constants import SHORT_COOKING_TIME, MEDIUM_COOKING_TIME
-
+from .constants import (
+    SHORT_COOKING_TIME,
+    MEDIUM_COOKING_TIME,
+    SHORT_COOKING_TIME_TEXT,
+    MEDIUM_COOKING_TIME_TEXT,
+    LONG_COOKING_TIME_TEXT
+)
 
 User = get_user_model()
 
@@ -78,24 +83,57 @@ class CookingTimeFilter(admin.SimpleListFilter):
     parameter_name = 'cooking_time'
 
     def lookups(self, request, model_admin):
-        short_count = Receipt.objects.filter(cooking_time__lte=SHORT_COOKING_TIME).count()
-        medium_count = Receipt.objects.filter(cooking_time__gt=SHORT_COOKING_TIME, cooking_time__lte=MEDIUM_COOKING_TIME).count()
-        long_count = Receipt.objects.filter(cooking_time__gt=MEDIUM_COOKING_TIME).count()
+        short_count = Receipt.objects.filter(
+            cooking_time__lte=SHORT_COOKING_TIME
+        ).count()
+        medium_count = Receipt.objects.filter(
+            cooking_time__gt=SHORT_COOKING_TIME,
+            cooking_time__lte=MEDIUM_COOKING_TIME
+        ).count()
+        long_count = Receipt.objects.filter(
+            cooking_time__gt=MEDIUM_COOKING_TIME
+        ).count()
 
         return (
-            ('short', f'Быстрые (<= {SHORT_COOKING_TIME} мин) ({short_count})'),
-            ('medium', f'Средние ({SHORT_COOKING_TIME} - {MEDIUM_COOKING_TIME} мин) ({medium_count})'),
-            ('long', f'Долгие (> {MEDIUM_COOKING_TIME} мин) ({long_count})'),
+            (
+                'short',
+                SHORT_COOKING_TIME_TEXT.format(
+                    short_count=short_count,
+                    short_time=SHORT_COOKING_TIME_TEXT
+                ),
+            ),
+            (
+                'medium',
+                MEDIUM_COOKING_TIME_TEXT.format(
+                    short_time=SHORT_COOKING_TIME,
+                    medium_time=MEDIUM_COOKING_TIME,
+                    medium_count=medium_count,
+                )
+            ),
+            (
+                'long',
+                LONG_COOKING_TIME_TEXT.format(
+                    medium_time=MEDIUM_COOKING_TIME,
+                    long_count=long_count,
+                )
+            ),
         )
 
     def queryset(self, request, queryset):
         value = self.value()
         if value == 'short':
-            return queryset.filter(cooking_time__lte=SHORT_COOKING_TIME)
+            return queryset.filter(
+                cooking_time__lte=SHORT_COOKING_TIME
+            )
         if value == 'medium':
-            return queryset.filter(cooking_time__gt=SHORT_COOKING_TIME, cooking_time__lte=MEDIUM_COOKING_TIME)
+            return queryset.filter(
+                cooking_time__gt=SHORT_COOKING_TIME,
+                cooking_time__lte=MEDIUM_COOKING_TIME
+            )
         if value == 'long':
-            return queryset.filter(cooking_time__gt=MEDIUM_COOKING_TIME)
+            return queryset.filter(
+                cooking_time__gt=MEDIUM_COOKING_TIME
+            )
         return queryset
 
 
@@ -115,7 +153,9 @@ class PublishedDateFilter(admin.SimpleListFilter):
         if self.value() == 'today':
             return queryset.filter(published_at__date=timezone.now().date())
         elif self.value() == 'this_week':
-            start_of_week = timezone.now().date() - timedelta(days=timezone.now().weekday())
+            start_of_week = timezone.now().date() - timedelta(
+                days=timezone.now().weekday()
+            )
             return queryset.filter(published_at__date__gte=start_of_week)
         elif self.value() == 'this_month':
             start_of_month = timezone.now().date().replace(day=1)
@@ -124,9 +164,13 @@ class PublishedDateFilter(admin.SimpleListFilter):
             return queryset.exclude(
                 published_at__date=timezone.now().date(),
             ).exclude(
-                published_at__date__gte=timezone.now().date() - timedelta(days=7),
+                published_at__date__gte=timezone.now().date() - timedelta(
+                    days=7
+                ),
             ).exclude(
-                published_at__date__gte=timezone.now().date().replace(day=1),
+                published_at__date__gte=timezone.now().date().replace(
+                    day=1
+                ),
             )
         return queryset
 
@@ -191,9 +235,13 @@ class BooleanFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         field_name = self.get_field_name()
         if self.value() == 'yes':
-            return queryset.filter(**{field_name + '__isnull': False}).distinct()
+            return queryset.filter(
+                **{field_name + '__isnull': False}
+            ).distinct()
         elif self.value() == 'no':
-            return queryset.filter(**{field_name + '__isnull': True}).distinct()
+            return queryset.filter(
+                **{field_name + '__isnull': True}
+            ).distinct()
 
     def get_field_name(self):
         raise NotImplementedError("Subclasses should implement this method.")

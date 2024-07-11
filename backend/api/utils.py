@@ -22,7 +22,8 @@ def generate_shopping_list(user):
         recipe_list = ", ".join(recipes[ingredient])
         lines.append(
             f"{idx}. {ingredient}: {amount} "
-            f"{ings[0].ingredient.measurement_unit} (для рецептов: {recipe_list})"
+            f"{ings[0].ingredient.measurement_unit} "
+            f"(для рецептов: {recipe_list})"
         )
 
     return "\n".join(lines)

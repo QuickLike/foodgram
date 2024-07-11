@@ -27,7 +27,6 @@ from .utils import generate_shopping_list
 from receipts.models import (
     Favourite,
     Ingredient,
-    IngredientReceipt,
     Receipt,
     ShoppingCart,
     Subscription,
@@ -85,7 +84,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             )
             if not is_created:
                 raise ValidationError(
-                    f'Рецепт уже добавлен!'
+                    'Рецепт уже добавлен!'
                 )
             serializer = UserRecipesSerializer(receipt)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -187,14 +186,18 @@ class UsersViewSet(UserViewSet):
 
         if request.method == 'POST':
             if request.user == author:
-                raise ValidationError({'detail': 'Нельзя подписаться на самого себя.'})
+                raise ValidationError(
+                    {'detail': 'Нельзя подписаться на самого себя.'}
+                )
 
             subscription, created = Subscription.objects.get_or_create(
                 follower=request.user,
                 author=author
             )
             if not created:
-                raise ValidationError({'detail': 'Вы уже подписаны на этого пользователя.'})
+                raise ValidationError(
+                    {'detail': 'Вы уже подписаны на этого пользователя.'}
+                )
 
             serializer = UserSubscriberSerializer(
                 author,
@@ -203,7 +206,11 @@ class UsersViewSet(UserViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         try:
-            model_item = get_object_or_404(Subscription, follower=request.user, author=author)
+            model_item = get_object_or_404(
+                Subscription,
+                follower=request.user,
+                author=author
+            )
             model_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Http404:
