@@ -3,6 +3,7 @@
 from django.conf import settings
 import django.contrib.auth.models
 import django.core.validators
+from django.core.validators import RegexValidator
 from django.db import migrations, models
 import django.db.models.deletion
 import django.utils.timezone
@@ -28,7 +29,7 @@ class Migration(migrations.Migration):
                 ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status')),
                 ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
                 ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
-                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. %(max_length)d characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=[receipts.models.validate_username])),
+                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. %(max_length)d characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=(RegexValidator(r'^[\w.@+-]+\Z'),),),),
                 ('email', models.EmailField(max_length=100, unique=True)),
                 ('first_name', models.CharField(max_length=50)),
                 ('last_name', models.CharField(max_length=50)),

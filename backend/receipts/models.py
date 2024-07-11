@@ -1,10 +1,6 @@
-import re
-
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
-from django.conf import settings
+from django.core.validators import MinValueValidator, RegexValidator
 from django.contrib.auth.models import AbstractUser, models
-from django.utils.translation import gettext_lazy as _
 
 from .constants import (
     MIN_COOKING_TIME,
@@ -14,26 +10,11 @@ from .constants import (
 )
 
 
-def validate_username(username):
-    if username == settings.RESERVED_USERNAME:
-        raise ValidationError(
-            _(f'Имя пользователя не может быть {settings.RESERVED_USERNAME}.')
-        )
-    invalid_chars = re.findall(r'[^a-zA-Z0-9.@+-]', username)
-    if invalid_chars:
-        raise ValidationError(
-            _('Имя пользователя должно содержать только '
-              'буквы, цифры, точки, дефисы, подчеркивания и знаки плюса. '
-              'Недопустимые символы: %(invalid_chars)s'),
-            params={'invalid_chars': ', '.join(set(invalid_chars))}
-        )
-
-
 class User(AbstractUser):
     username = models.CharField(
         max_length=MAX_USERNAME_LENGTH,
         unique=True,
-        validators=[validate_username],
+        validators=(RegexValidator(r'^[\w.@+-]+\Z'),),
     )
     email = models.EmailField(
         unique=True,
