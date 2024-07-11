@@ -16,7 +16,7 @@ from .permissions import IsAuthorOrReadOnly
 from .serializers import (
     IngredientSerializer,
     ReceiptSerializer,
-    ReceiptUpdateSerializer,
+    RecipeSerializer,
     TagSerializer,
     SubscribeSerializer,
     AvatarSerializer,
@@ -72,7 +72,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         if self.request.method not in SAFE_METHODS:
-            return ReceiptUpdateSerializer
+            return RecipeSerializer
         return ReceiptSerializer
 
     def _shopping_cart_or_favorite(self, request, model, **kwargs):

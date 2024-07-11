@@ -132,7 +132,7 @@ class ReceiptSerializer(serializers.ModelSerializer):
         ).exists()
 
 
-class ReceiptUpdateSerializer(serializers.ModelSerializer):
+class RecipeSerializer(serializers.ModelSerializer):
     author = UserSerializer(default=serializers.CurrentUserDefault())
     ingredients = RecipeIngredientSerializer(many=True, required=True)
     tags = serializers.PrimaryKeyRelatedField(
