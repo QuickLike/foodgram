@@ -90,13 +90,11 @@ class Tag(models.Model):
         max_length=128,
         verbose_name='Название',
         unique=True,
-        null=False,
     )
     slug = models.SlugField(
         max_length=128,
         verbose_name='Слаг',
         unique=True,
-        null=False,
     )
 
     class Meta:
@@ -111,12 +109,10 @@ class Ingredient(models.Model):
     name = models.CharField(
         max_length=128,
         verbose_name='Название',
-        null=False,
     )
     measurement_unit = models.CharField(
         max_length=16,
         verbose_name='Единица измерения',
-        null=False,
     )
 
     class Meta:
@@ -133,35 +129,31 @@ class Receipt(models.Model):
         on_delete=models.CASCADE,
         related_name='recipes',
         verbose_name='Автор',
-        null=False,
     )
     name = models.CharField(
         max_length=128,
         verbose_name='Название',
-        null=False,
     )
     image = models.ImageField(
         upload_to='receipt/images',
-        null=False,
     )
     text = models.TextField(
         verbose_name='Описание',
-        null=False,
     )
     ingredients = models.ManyToManyField(
         Ingredient,
         verbose_name='Продукты в рецепте',
+        related_name='recipes',
         through='IngredientReceipt',
     )
     tags = models.ManyToManyField(
         Tag,
         verbose_name='Теги',
+        related_name='recipes',
     )
     cooking_time = models.PositiveIntegerField(
         verbose_name='Время приготовления',
-        null=False,
         validators=(MinValueValidator(MIN_COOKING_TIME), ),
-        default=MIN_COOKING_TIME,
     )
     published_at = models.DateTimeField(
         verbose_name='Опубликовано',
@@ -171,7 +163,6 @@ class Receipt(models.Model):
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
-
         ordering = ('-published_at', )
 
     def __str__(self):
@@ -185,6 +176,7 @@ class IngredientReceipt(models.Model):
     )
     receipt = models.ForeignKey(
         Receipt,
+        related_name='ingredient_list',
         on_delete=models.CASCADE,
     )
     amount = models.PositiveSmallIntegerField(

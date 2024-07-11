@@ -18,7 +18,6 @@ from .serializers import (
     ReceiptSerializer,
     RecipeSerializer,
     TagSerializer,
-    SubscribeSerializer,
     AvatarSerializer,
     UserSubscriberSerializer,
     UserRecipesSerializer
@@ -188,22 +187,17 @@ class UsersViewSet(UserViewSet):
 
         if request.method == 'POST':
             if request.user == author:
-                raise ValidationError(
-                    detail={'detail': 'Нельзя подписаться на самого себя.'},
-                )
+                raise ValidationError({'detail': 'Нельзя подписаться на самого себя.'})
 
             subscription, created = Subscription.objects.get_or_create(
                 follower=request.user,
                 following=author
             )
             if not created:
-                raise ValidationError(
-                    detail={
-                        'detail': 'Вы уже подписаны на этого пользователя.'
-                    },
-                )
-            serializer = SubscribeSerializer(
-                subscription,
+                raise ValidationError({'detail': 'Вы уже подписаны на этого пользователя.'})
+
+            serializer = UserSubscriberSerializer(
+                author,
                 context={'request': request}
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)

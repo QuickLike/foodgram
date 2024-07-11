@@ -91,7 +91,7 @@ class TagSerializer(serializers.ModelSerializer):
 class ReceiptSerializer(serializers.ModelSerializer):
     author = UserSerializer()
     ingredients = ReceiptIngredientSerializer(
-        source='ingredientreceipt_set',
+        source='ingredient_list',
         many=True
     )
     tags = TagSerializer(many=True)
@@ -154,35 +154,44 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author',
         )
 
+    def validate(self, data):
+        fields = ('tags', 'ingredients')
+        for field in fields:
+            if field not in data:
+                raise serializers.ValidationError(
+                    f"Обязательное поле '{field}'."
+                )
+        return data
+
     def validate_ingredients(self, ingredients):
-        return self._validate_items(ingredients, 'ingredients', Ingredient)
+        return self.validate_items(ingredients, 'ingredients', Ingredient)
 
     def validate_tags(self, tags):
-        return self._validate_items(tags, 'tags', Tag)
+        return self.validate_items(tags, 'tags', Tag)
 
     def validate_image(self, image):
-        return self._validate_items(image, 'image')
+        return self.validate_items(image, 'image')
 
     def validate_cooking_time(self, cooking_time):
-        return self._validate_items(cooking_time, 'cooking_time')
+        return self.validate_items(cooking_time, 'cooking_time')
 
-    def _validate_items(self, items, field_name, model=None):
+    @staticmethod
+    def validate_items(items, field_name, model=None):
         if not items or items is None:
             raise serializers.ValidationError(
                 f"Обязательное поле '{field_name}'."
             )
 
-        if isinstance(items, SimpleUploadedFile):
+        if isinstance(
+                items,
+                SimpleUploadedFile
+        ) or isinstance(
+            items,
+            int
+        ):
             return items
 
-        duplicates = []
-        if isinstance(items, int):
-            return items
-
-        for item in items:
-            if items.count(item) > 1:
-                duplicates.append(item)
-
+        duplicates = [item for item in items if items.count(item) > 1]
         if duplicates:
             raise serializers.ValidationError(
                 f"Повторяющиеся элементы не допустимы.\n{duplicates}"
@@ -191,21 +200,20 @@ class RecipeSerializer(serializers.ModelSerializer):
         if model:
             if model == Tag:
                 return items
-            else:
-                item_ids = [item['id'] for item in items]
-            invalid_items = []
-            for item_id in item_ids:
-                if not model.objects.filter(id=item_id).exists():
-                    invalid_items.append(item_id)
-
+            item_ids = [item['id'] for item in items]
+            invalid_items = [
+                item_id for item_id in item_ids if not model.objects.filter(
+                    id=item_id
+                ).exists()
+            ]
             if invalid_items:
                 raise serializers.ValidationError(
                     f"Элементов с ID {invalid_items} не существует."
                 )
-
         return items
 
-    def _ingredients_receipts_create(self, ingredients, receipt):
+    @staticmethod
+    def ingredients_receipts_create(ingredients, receipt):
         IngredientReceipt.objects.bulk_create(
             IngredientReceipt(
                 receipt=receipt,
@@ -219,41 +227,17 @@ class RecipeSerializer(serializers.ModelSerializer):
         ingredients_data = validated_data.pop('ingredients')
         tags_data = validated_data.pop('tags')
         receipt = Receipt.objects.create(**validated_data)
-
-        if 'cooking_time' not in validated_data:
-            raise serializers.ValidationError(
-                detail="Обязательное поле 'cooking_time'."
-            )
-
         receipt.save()
-
         receipt.tags.set(tags_data)
-
-        self._ingredients_receipts_create(ingredients_data, receipt)
-
+        self.ingredients_receipts_create(ingredients_data, receipt)
         return receipt
 
     def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('ingredients', None)
-        tags = validated_data.pop('tags', None)
-
-        if ingredients_data is None:
-            raise serializers.ValidationError(
-                detail="Обязательное поле 'ingredients'."
-            )
-
-        if tags is None:
-            raise serializers.ValidationError(
-                detail="Обязательное поле 'tags'."
-            )
-
-        if tags is not None:
-            instance.tags.set(tags)
-
-        if ingredients_data is not None:
-            instance.ingredientreceipt_set.all().delete()
-            self._ingredients_receipts_create(ingredients_data, instance)
-
+        ingredients_data = validated_data.pop('ingredients')
+        tags = validated_data.pop('tags')
+        instance.tags.set(tags)
+        instance.ingredient_list.all().delete()
+        self.ingredients_receipts_create(ingredients_data, instance)
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -263,7 +247,6 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class UserRecipesSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Receipt
         fields = ['id', 'name', 'image', 'cooking_time']
@@ -275,42 +258,20 @@ class UserSubscriberSerializer(UserSerializer):
 
     class Meta:
         model = User
-        fields = UserSerializer.Meta.fields + (
+        fields = (
+            *UserSerializer.Meta.fields,
             'recipes',
             'recipes_count',
         )
 
     def get_recipes(self, user):
         request = self.context.get('request')
-
-        return UserRecipesSerializer(
-            user.recipes.all()[:int(request.GET.get('recipes_limit', 10**10))],
-            many=True
-        ).data
+        limit = int(request.GET.get('recipes_limit', 10 ** 10))
+        recipes = user.recipes.all()[:limit]
+        return UserRecipesSerializer(recipes, many=True).data
 
     def get_recipes_count(self, user):
         return user.recipes.count()
-
-
-class SubscribeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Subscription
-        fields = ('id', 'user', 'subscribe_on')
-        read_only_fields = ('id',)
-        validators = [
-            serializers.UniqueTogetherValidator(
-                queryset=Subscription.objects.all(),
-                fields=('user', 'subscribe_on'),
-                message='Вы уже подписаны на этого пользователя.'
-            ),
-        ]
-
-    def to_representation(self, instance):
-        user_to_subscribe = instance.following
-        return UserSubscriberSerializer(
-            user_to_subscribe,
-            context={'request': self.context.get('request')}
-        ).data
 
 
 class SubscriptionsSerializer(serializers.ModelSerializer):
