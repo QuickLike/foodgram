@@ -6,7 +6,7 @@ def generate_shopping_list(user):
 
     ings = (
         IngredientReceipt.objects.filter(
-            receipt__shoppingcarts__user=user
+            receipt__shopping_carts__user=user
         ).select_related('ingredient', 'receipt')
     )
 

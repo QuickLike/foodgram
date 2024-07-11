@@ -191,7 +191,7 @@ class UsersViewSet(UserViewSet):
 
             subscription, created = Subscription.objects.get_or_create(
                 follower=request.user,
-                following=author
+                author=author
             )
             if not created:
                 raise ValidationError({'detail': 'Вы уже подписаны на этого пользователя.'})
@@ -203,7 +203,7 @@ class UsersViewSet(UserViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         try:
-            model_item = get_object_or_404(Subscription, follower=request.user, following=author)
+            model_item = get_object_or_404(Subscription, follower=request.user, author=author)
             model_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         except Http404:

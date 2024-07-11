@@ -41,7 +41,7 @@ class ReceiptFilter(rest_framework.FilterSet):
     def filter_is_in_shopping_cart(self, recipes, name, value):
         user = self.request.user
         if user.is_authenticated and value:
-            return recipes.filter(shoppingcarts__user=user)
+            return recipes.filter(shopping_carts__user=user)
         return recipes
 
     def filter_is_favorited(self, recipes, name, value):

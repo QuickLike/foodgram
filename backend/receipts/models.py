@@ -40,30 +40,33 @@ class Subscription(models.Model):
     follower = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        verbose_name='Пользователь',
         related_name='followers',
     )
-    following = models.ForeignKey(
+    author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        verbose_name='Подписчик',
         related_name='authors',
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['follower', 'following'],
-                name='unique_follower_following'
+                fields=['follower', 'author'],
+                name='unique_follower_author'
             ),
         ]
+        default_related_name = 'subscriptions'
         verbose_name = 'Подписка'
         verbose_name_plural = 'подписки'
 
     def clean(self):
-        if self.follower == self.following:
+        if self.follower == self.author:
             raise ValidationError('Нельзя подписаться на самого себя.')
 
     def __str__(self):
-        return f'{self.follower} {self.following}'
+        return f'{self.follower} {self.author}'
 
 
 class Tag(models.Model):
@@ -74,11 +77,12 @@ class Tag(models.Model):
     )
     slug = models.SlugField(
         max_length=128,
-        verbose_name='Слаг',
+        verbose_name='Ярлык',
         unique=True,
     )
 
     class Meta:
+        default_related_name = 'tags'
         verbose_name = 'Тег'
         verbose_name_plural = 'теги'
 
@@ -97,6 +101,7 @@ class Ingredient(models.Model):
     )
 
     class Meta:
+        default_related_name = 'ingredients'
         verbose_name = 'Продукт'
         verbose_name_plural = 'продукты'
 
@@ -108,7 +113,6 @@ class Receipt(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipes',
         verbose_name='Автор',
     )
     name = models.CharField(
@@ -124,13 +128,11 @@ class Receipt(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         verbose_name='Продукты в рецепте',
-        related_name='recipes',
         through='IngredientReceipt',
     )
     tags = models.ManyToManyField(
         Tag,
         verbose_name='Теги',
-        related_name='recipes',
     )
     cooking_time = models.PositiveIntegerField(
         verbose_name='Время приготовления',
@@ -142,6 +144,7 @@ class Receipt(models.Model):
     )
 
     class Meta:
+        default_related_name = 'recipes'
         verbose_name = 'Рецепт'
         verbose_name_plural = 'рецепты'
         ordering = ('-published_at', )
@@ -181,23 +184,18 @@ class IngredientReceipt(models.Model):
 class UserRecipeBase(models.Model):
     user = models.ForeignKey(
         User,
+        verbose_name='Пользователь',
         on_delete=models.CASCADE,
-        related_name='%(class)ss',
     )
     receipt = models.ForeignKey(
         Receipt,
+        verbose_name='Рецепт',
         on_delete=models.CASCADE,
-        related_name='%(class)ss',
     )
 
     class Meta:
         abstract = True
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user', 'receipt'],
-                name='unique_user_%(class)',
-            )
-        ]
+        unique_together = ('user', 'receipt')
 
     def __str__(self):
         return f'{self.user} {self.receipt}'
@@ -205,13 +203,15 @@ class UserRecipeBase(models.Model):
 
 class Favourite(UserRecipeBase):
 
-    class Meta:
+    class Meta(UserRecipeBase.Meta):
+        default_related_name = 'favourites'
         verbose_name = 'Избранное'
         verbose_name_plural = 'избранные'
 
 
 class ShoppingCart(UserRecipeBase):
 
-    class Meta:
+    class Meta(UserRecipeBase.Meta):
+        default_related_name = 'shopping_carts'
         verbose_name = 'Корзина покупок'
         verbose_name_plural = 'корзины покупок'
