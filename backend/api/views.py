@@ -88,12 +88,8 @@ class ReceiptViewSet(viewsets.ModelViewSet):
                 )
             serializer = UserRecipesSerializer(receipt)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        try:
-            model_item = get_object_or_404(model, user=user, receipt=receipt)
-            model_item.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Http404:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        get_object_or_404(model, user=user, receipt=receipt).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         methods=['post', 'delete'],
@@ -125,7 +121,7 @@ class ReceiptViewSet(viewsets.ModelViewSet):
     def get_link(self, request, **kwargs):
         get_object_or_404(Receipt, pk=kwargs['pk'])
         full_link = request.build_absolute_uri(
-            f'https://{request.get_host()}/s/{kwargs["pk"]}'
+            f'/s/{kwargs["pk"]}'
         )
         return Response(
             data={'short-link': full_link},
@@ -134,13 +130,11 @@ class ReceiptViewSet(viewsets.ModelViewSet):
 
     @action(methods=['get'], detail=False, url_path='download_shopping_cart')
     def download_shopping_cart(self, request):
-        shopping_list_content = generate_shopping_list(request.user)
-        response = FileResponse(
-            shopping_list_content,
+        return FileResponse(
+            generate_shopping_list(request.user),
             filename='shopping_list.txt',
             content_type='text/plain; charset=utf-8'
         )
-        return response
 
 
 class UsersViewSet(UserViewSet):
@@ -205,16 +199,12 @@ class UsersViewSet(UserViewSet):
             )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        try:
-            model_item = get_object_or_404(
-                Subscription,
-                follower=request.user,
-                author=author
-            )
-            model_item.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-        except Http404:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        get_object_or_404(
+            Subscription,
+            follower=request.user,
+            author=author
+        ).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AvatarView(APIView):
