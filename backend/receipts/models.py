@@ -195,7 +195,12 @@ class UserRecipeBase(models.Model):
 
     class Meta:
         abstract = True
-        unique_together = ('user', 'receipt')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'receipt'],
+                name='unique_user_receipt_%(class)s',
+            )
+        ]
 
     def __str__(self):
         return f'{self.user} {self.receipt}'
