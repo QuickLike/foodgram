@@ -76,8 +76,7 @@ DATABASES = {
         'NAME': env('POSTGRES_DB', 'foodgram'),
         'USER': env('POSTGRES_USER', 'foodgram_user'),
         'PASSWORD': env('POSTGRES_PASSWORD', ''),
-        # 'HOST': env('DB_HOST', ''),
-        'HOST': '',
+        'HOST': env('DB_HOST', ''),
         'PORT': env('DB_PORT', 5432),
     }
 }
