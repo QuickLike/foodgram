@@ -15,3 +15,8 @@ MEDIUM_COOKING_TIME_TEXT = """
 LONG_COOKING_TIME_TEXT = """
 Долгие (> {medium_time} мин) ({long_count})
 """
+
+TODAY_TEXT = "За сегодня ({count})"
+THIS_WEEK_TEXT = "За эту неделю ({count})"
+THIS_MONTH_TEXT = "За этот месяц ({count})"
+OLDER_TEXT = "Старые ({count})"

@@ -14,7 +14,11 @@ from .constants import (
     MEDIUM_COOKING_TIME,
     SHORT_COOKING_TIME_TEXT,
     MEDIUM_COOKING_TIME_TEXT,
-    LONG_COOKING_TIME_TEXT
+    LONG_COOKING_TIME_TEXT,
+    TODAY_TEXT,
+    THIS_MONTH_TEXT,
+    THIS_WEEK_TEXT,
+    OLDER_TEXT
 )
 
 User = get_user_model()
@@ -82,58 +86,74 @@ class CookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
-    def lookups(self, request, model_admin):
+    def get_filter_ranges(self):
+        short_range = (0, SHORT_COOKING_TIME)
+        medium_range = (SHORT_COOKING_TIME + 1, MEDIUM_COOKING_TIME)
+        long_range = (MEDIUM_COOKING_TIME + 1, 10**10)
+
         short_count = Receipt.objects.filter(
-            cooking_time__lte=SHORT_COOKING_TIME
+            cooking_time__range=short_range
         ).count()
         medium_count = Receipt.objects.filter(
-            cooking_time__gt=SHORT_COOKING_TIME,
-            cooking_time__lte=MEDIUM_COOKING_TIME
+            cooking_time__range=medium_range
         ).count()
         long_count = Receipt.objects.filter(
             cooking_time__gt=MEDIUM_COOKING_TIME
         ).count()
 
-        return (
+        return [
+            ('short', short_range, short_count),
+            ('medium', medium_range, medium_count),
+            ('long', long_range, long_count),
+        ]
+
+    def lookups(self, request, model_admin):
+        filter_ranges = self.get_filter_ranges()
+        return [
             (
-                'short',
-                SHORT_COOKING_TIME_TEXT.format(
-                    short_count=short_count,
-                    short_time=SHORT_COOKING_TIME_TEXT
-                ),
-            ),
+                'short', SHORT_COOKING_TIME_TEXT.format(
+                    short_time=SHORT_COOKING_TIME,
+                    short_count=short_count
+                )
+            )
+            for short,
+            short_range,
+            short_count in filter_ranges if short == 'short'
+        ] + [
             (
                 'medium',
                 MEDIUM_COOKING_TIME_TEXT.format(
                     short_time=SHORT_COOKING_TIME,
                     medium_time=MEDIUM_COOKING_TIME,
-                    medium_count=medium_count,
+                    medium_count=medium_count
                 )
-            ),
+            )
+            for medium,
+            medium_range,
+            medium_count in filter_ranges if medium == 'medium'
+        ] + [
             (
                 'long',
                 LONG_COOKING_TIME_TEXT.format(
                     medium_time=MEDIUM_COOKING_TIME,
-                    long_count=long_count,
+                    long_count=long_count
                 )
-            ),
-        )
+            )
+            for long,
+            long_range,
+            long_count in filter_ranges if long == 'long'
+        ]
 
     def queryset(self, request, queryset):
         value = self.value()
-        if value == 'short':
-            return queryset.filter(
-                cooking_time__lte=SHORT_COOKING_TIME
-            )
-        if value == 'medium':
-            return queryset.filter(
-                cooking_time__gt=SHORT_COOKING_TIME,
-                cooking_time__lte=MEDIUM_COOKING_TIME
-            )
-        if value == 'long':
-            return queryset.filter(
-                cooking_time__gt=MEDIUM_COOKING_TIME
-            )
+        filter_ranges = self.get_filter_ranges()
+
+        for filter_name, filter_range, _ in filter_ranges:
+            if value == filter_name:
+                if filter_range[1] == float('inf'):
+                    return queryset.filter(cooking_time__gt=filter_range[0])
+                else:
+                    return queryset.filter(cooking_time__range=filter_range)
         return queryset
 
 
@@ -141,37 +161,69 @@ class PublishedDateFilter(admin.SimpleListFilter):
     title = 'Дата публикации'
     parameter_name = 'published_at'
 
+    def get_filter_params(self):
+        today = timezone.now().date()
+        start_of_week = today - timedelta(days=today.weekday())
+        start_of_month = today.replace(day=1)
+
+        today_count = Receipt.objects.filter(
+            published_at__date=today
+        ).count()
+        this_week_count = Receipt.objects.filter(
+            published_at__date__gte=start_of_week
+        ).count()
+        this_month_count = Receipt.objects.filter(
+            published_at__date__gte=start_of_month
+        ).count()
+        older_count = Receipt.objects.exclude(
+            published_at__date=today
+        ).exclude(
+            published_at__date__gte=start_of_week
+        ).exclude(
+            published_at__date__gte=start_of_month
+        ).count()
+
+        return [
+            ('today', (today, today), today_count),
+            ('this_week', (start_of_week, today), this_week_count),
+            ('this_month', (start_of_month, today), this_month_count),
+            ('older', (None, start_of_month - timedelta(days=1)), older_count),
+        ]
+
     def lookups(self, request, model_admin):
+        filter_params = self.get_filter_params()
         return (
-            ('today', 'За сегодня'),
-            ('this_week', 'За эту неделю'),
-            ('this_month', 'За этот месяц'),
-            ('older', 'Старые'),
+            (
+                'today',
+                TODAY_TEXT.format(count=filter_params[0][2])
+            ),
+            (
+                'this_week',
+                THIS_WEEK_TEXT.format(count=filter_params[1][2])
+            ),
+            (
+                'this_month',
+                THIS_MONTH_TEXT.format(count=filter_params[2][2])
+            ),
+            (
+                'older',
+                OLDER_TEXT.format(count=filter_params[3][2])
+            ),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'today':
-            return queryset.filter(published_at__date=timezone.now().date())
-        elif self.value() == 'this_week':
-            start_of_week = timezone.now().date() - timedelta(
-                days=timezone.now().weekday()
-            )
-            return queryset.filter(published_at__date__gte=start_of_week)
-        elif self.value() == 'this_month':
-            start_of_month = timezone.now().date().replace(day=1)
-            return queryset.filter(published_at__date__gte=start_of_month)
-        elif self.value() == 'older':
-            return queryset.exclude(
-                published_at__date=timezone.now().date(),
-            ).exclude(
-                published_at__date__gte=timezone.now().date() - timedelta(
-                    days=7
-                ),
-            ).exclude(
-                published_at__date__gte=timezone.now().date().replace(
-                    day=1
-                ),
-            )
+        value = self.value()
+        filter_params = self.get_filter_params()
+
+        for filter_name, filter_range, _ in filter_params:
+            if value == filter_name:
+                if filter_range[0] is None:
+                    return queryset.filter(
+                        published_at__date__lt=filter_range[1]
+                    )
+                return queryset.filter(
+                    published_at__date__range=filter_range
+                )
         return queryset
 
 
@@ -201,28 +253,32 @@ class ReceiptAdmin(admin.ModelAdmin):
         'name',
     )
 
-    @admin.display(description='Время приготовления в минутах')
+    @admin.display(description='Время (мин)')
     def cooking_time_display(self, receipt):
         return receipt.cooking_time
 
     @admin.display(description='Теги')
+    @mark_safe
     def tags_display(self, receipt):
-        return "\n".join([tag.name for tag in receipt.tags.all()])
+        return '<br>'.join(map(str, receipt.tags.all()))
 
     @admin.display(description='Продукты')
+    @mark_safe
     def ingredients_display(self, receipt):
-        ingredients_list = [
-            f'{ingredient.name}, {ingredient.measurement_unit}, {ir.amount}'
-            for ir in receipt.ingredient_list.all()
-            for ingredient in receipt.ingredients.filter(id=ir.ingredient_id)
-        ]
-        return mark_safe('<br>'.join(ingredients_list))
+        return '<br>'.join(
+            [
+                f'{ingredient_in_receipt.ingredient.name}, '
+                f'{ingredient_in_receipt.ingredient.measurement_unit}, '
+                f'{ingredient_in_receipt.amount}'
+                for ingredient_in_receipt in
+                receipt.ingredients_in_receipt.all()
+            ]
+        )
 
     @admin.display(description='Картинка')
+    @mark_safe
     def image_display(self, receipt):
-        return mark_safe(
-            f'<img src="{receipt.image.url}" width="50" height="50" />'
-        )
+        return f'<img src="{receipt.image.url}" width="50" height="50" />'
 
 
 class BooleanFilter(admin.SimpleListFilter):
@@ -234,14 +290,12 @@ class BooleanFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         field_name = self.get_field_name()
-        if self.value() == 'yes':
+        value = self.value()
+        if value in ('yes', 'no'):
             return queryset.filter(
-                **{field_name + '__isnull': False}
+                **{f"{field_name}__isnull": value == 'no'}
             ).distinct()
-        elif self.value() == 'no':
-            return queryset.filter(
-                **{field_name + '__isnull': True}
-            ).distinct()
+        return queryset
 
     def get_field_name(self):
         raise NotImplementedError("Subclasses should implement this method.")
