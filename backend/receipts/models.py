@@ -23,7 +23,7 @@ class User(AbstractUser):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     avatar = models.ImageField(
-        upload_to='users/avatars',
+        upload_to='users',
         blank=True,
     )
 
@@ -120,7 +120,7 @@ class Receipt(models.Model):
         verbose_name='Название',
     )
     image = models.ImageField(
-        upload_to='receipt/images',
+        upload_to='receipts',
     )
     text = models.TextField(
         verbose_name='Описание',
