@@ -148,7 +148,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
         value = self.value()
         filter_ranges = self.get_filter_ranges()
 
-        for filter_name, filter_range, _ in filter_ranges:
+        for filter_name, filter_range, count in filter_ranges:
             if value == filter_name:
                 if filter_range[1] == float('inf'):
                     return queryset.filter(cooking_time__gt=filter_range[0])
@@ -215,7 +215,7 @@ class PublishedDateFilter(admin.SimpleListFilter):
         value = self.value()
         filter_params = self.get_filter_params()
 
-        for filter_name, filter_range, _ in filter_params:
+        for filter_name, filter_range, count in filter_params:
             if value == filter_name:
                 if filter_range[0] is None:
                     return queryset.filter(
