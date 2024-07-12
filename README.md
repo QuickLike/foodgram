@@ -53,8 +53,14 @@ TELEGRAM_TOKEN - TELEGRAM токен бота
 ```
 
 ## Как развернуть локально
-1. Клонируйте репозиторий https://github.com/quicklike/foodgram
-2. Перейдите в директорию /backend/
+1. Клонируйте репозиторий 
+```
+git clone https://github.com/QuickLike/foodgram.git
+```
+2. Перейдите в директорию
+```
+cd backend/
+```
 3. Создайте файл .env и добавьте в него необходимые переменные окружения
 ```
 DJANGO_SECRET_KEY=<ключ Django>
@@ -65,7 +71,6 @@ DJANGO_DB=sqlite
 4. Примените миграции
 ```
 python manage.py migrate
-python manage.py collectstatic
 ```
 5. Загрузите фикстуры
 ```
