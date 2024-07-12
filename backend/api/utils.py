@@ -1,12 +1,12 @@
 from collections import defaultdict
 
-from receipts.models import IngredientReceipt
+from receipts.models import IngredientInReceipt
 
 
 def generate_shopping_list(user):
 
     ings = (
-        IngredientReceipt.objects.filter(
+        IngredientInReceipt.objects.filter(
             receipt__shopping_carts__user=user
         ).select_related('ingredient', 'receipt')
     )

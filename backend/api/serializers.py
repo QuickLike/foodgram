@@ -7,7 +7,7 @@ from rest_framework import serializers
 from receipts.models import (
     Favourite,
     Ingredient,
-    IngredientReceipt,
+    IngredientInReceipt,
     Receipt,
     ShoppingCart,
     Subscription,
@@ -62,7 +62,7 @@ class ReceiptIngredientSerializer(serializers.ModelSerializer):
     amount = serializers.IntegerField()
 
     class Meta:
-        model = IngredientReceipt
+        model = IngredientInReceipt
         fields = (
             'id',
             'name',
@@ -75,7 +75,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField()
 
     class Meta:
-        model = IngredientReceipt
+        model = IngredientInReceipt
         fields = (
             'id',
             'amount'
@@ -91,7 +91,7 @@ class TagSerializer(serializers.ModelSerializer):
 class ReceiptSerializer(serializers.ModelSerializer):
     author = UserSerializer()
     ingredients = ReceiptIngredientSerializer(
-        source='ingredient_list',
+        source='ingredients_in_receipt',
         many=True
     )
     tags = TagSerializer(many=True)
@@ -214,8 +214,8 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def ingredients_receipts_create(ingredients, receipt):
-        IngredientReceipt.objects.bulk_create(
-            IngredientReceipt(
+        IngredientInReceipt.objects.bulk_create(
+            IngredientInReceipt(
                 receipt=receipt,
                 ingredient=Ingredient.objects.get(id=ingredient['id']),
                 amount=ingredient['amount']
@@ -236,7 +236,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         ingredients_data = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         instance.tags.set(tags)
-        instance.ingredient_list.all().delete()
+        instance.ingredients_in_receipt.all().delete()
         self.ingredients_receipts_create(ingredients_data, instance)
         return super().update(instance, validated_data)
 

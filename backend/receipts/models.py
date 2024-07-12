@@ -128,7 +128,7 @@ class Receipt(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         verbose_name='Продукты в рецепте',
-        through='IngredientReceipt',
+        through='IngredientInReceipt',
     )
     tags = models.ManyToManyField(
         Tag,
@@ -153,14 +153,14 @@ class Receipt(models.Model):
         return self.name[:20]
 
 
-class IngredientReceipt(models.Model):
+class IngredientInReceipt(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
     )
     receipt = models.ForeignKey(
         Receipt,
-        related_name='ingredient_list',
+        related_name='ingredients_in_receipt',
         on_delete=models.CASCADE,
     )
     amount = models.PositiveSmallIntegerField(
