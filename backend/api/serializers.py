@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
 from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
@@ -172,14 +171,14 @@ class RecipeSerializer(serializers.ModelSerializer):
     def validate_image(self, image):
         if not image:
             raise serializers.ValidationError(
-                f'Обязательное поле "image".'
+                'Обязательное поле "image".'
             )
         return image
 
     def validate_cooking_time(self, cooking_time):
         if not cooking_time:
             raise serializers.ValidationError(
-                f'Обязательное поле "cooking_time".'
+                'Обязательное поле "cooking_time".'
             )
         return cooking_time
 
