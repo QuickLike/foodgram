@@ -5,7 +5,6 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
-from django.db.models import Count
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -25,10 +24,6 @@ from .constants import (
     SHORT_COOKING_TIME_TEXT,
     MEDIUM_COOKING_TIME_TEXT,
     LONG_COOKING_TIME_TEXT,
-    TODAY_TEXT,
-    THIS_MONTH_TEXT,
-    THIS_WEEK_TEXT,
-    OLDER_TEXT
 )
 
 User = get_user_model()
@@ -51,7 +46,6 @@ class IngredientAdmin(admin.ModelAdmin):
     )
     list_filter = (
         'measurement_unit',
-        # 'in_receipt',
     )
     list_display_links = (
         'name',
@@ -61,9 +55,8 @@ class IngredientAdmin(admin.ModelAdmin):
     def recipes_count(self, ingredient):
         return ingredient.recipes.count()
 
-    # @admin.display(description='Есть в рецепте')
-    # def in_receipt(self, ingredient):
-    #     return ingredient.recipes.count()
+    def get_queryset(self, request):
+        return Ingredient.objects.filter(recipes__gt=0)
 
 
 @admin.register(Tag)
@@ -141,7 +134,9 @@ class CookingTimeFilter(admin.SimpleListFilter):
         if not self.value():
             return queryset
         if ast.literal_eval(self.value())[1] == 10**10:
-            return queryset.filter(cooking_time__gt=ast.literal_eval(self.value())[0])
+            return queryset.filter(
+                cooking_time__gt=ast.literal_eval(self.value())[0]
+            )
 
 
 class PublishedDateFilter(admin.SimpleListFilter):
