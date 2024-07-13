@@ -9,7 +9,15 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
-from .models import Ingredient, Receipt, Tag, IngredientInReceipt, Favourite, ShoppingCart, Subscription
+from .models import (
+    Ingredient,
+    Receipt,
+    Tag,
+    IngredientInReceipt,
+    Favourite,
+    ShoppingCart,
+    Subscription
+)
 from .constants import (
     SHORT_COOKING_TIME,
     MEDIUM_COOKING_TIME,
