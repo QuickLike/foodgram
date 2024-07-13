@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
-from .models import Ingredient, Receipt, Tag, IngredientInReceipt
+from .models import Ingredient, Receipt, Tag, IngredientInReceipt, Favourite, ShoppingCart, Subscription
 from .constants import (
     SHORT_COOKING_TIME,
     MEDIUM_COOKING_TIME,
@@ -335,3 +335,54 @@ class UserAdmin(UserAdmin):
     @admin.display(description='Рецепты')
     def recipe_count(self, user):
         return user.recipes.count()
+
+
+class UserRecipeBaseAdmin(admin.ModelAdmin):
+    list_display = (
+        'user',
+        'receipt',
+    )
+    list_editable = (
+        'receipt',
+    )
+    search_fields = (
+        'receipt__name',
+        'user__username',
+    )
+    list_filter = (
+        'receipt__name',
+    )
+    list_display_links = (
+        'user',
+    )
+
+
+@admin.register(Favourite)
+class FavouriteAdmin(UserRecipeBaseAdmin):
+    pass
+
+
+@admin.register(ShoppingCart)
+class ShoppingCartAdmin(UserRecipeBaseAdmin):
+    pass
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        'follower',
+        'author',
+    )
+    list_editable = (
+        'author',
+    )
+    search_fields = (
+        'follower__username',
+        'author__username',
+    )
+    list_filter = (
+        'follower__username',
+    )
+    list_display_links = (
+        'follower',
+    )
