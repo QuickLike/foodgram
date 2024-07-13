@@ -47,7 +47,6 @@ class IngredientAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'name',
-        'tags__name',
     )
     list_filter = (
         'measurement_unit',
