@@ -8,6 +8,7 @@ from receipts.models import IngredientInReceipt
 
 
 def generate_shopping_list(user):
+
     ingredients_in_receipt = (
         IngredientInReceipt.objects.filter(
             receipt__shopping_carts__user=user
@@ -15,21 +16,18 @@ def generate_shopping_list(user):
             'ingredient__name',
             'ingredient__measurement_unit'
         ).annotate(
-            total_amount=Sum('amount'),
-            recipes=Concat(
-                F('ingredient__name'), V(': '), F('receipt__name'),
-                output_field=CharField()
-            )
+            total_amount=Sum('amount')
         )
     )
 
     recipes_for_ingredients = defaultdict(set)
-    for item in ingredients_in_receipt:
+    for item in IngredientInReceipt.objects.filter(
+            receipt__shopping_carts__user=user
+    ).values('ingredient__name', 'receipt__name'):
         ingredient_name = item['ingredient__name']
-        recipe_name = item['recipes'].split(': ')[1]
+        recipe_name = item['receipt__name']
         recipes_for_ingredients[ingredient_name].add(recipe_name)
 
-    # Формируем список покупок
     return '\n'.join([
         f'Список покупок для {user.username}. '
         f'Дата составления {datetime.now().strftime("%d.%m.%Y %H:%M")}:',
