@@ -156,10 +156,12 @@ class Receipt(models.Model):
 class IngredientInReceipt(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
+        verbose_name='Продукт',
         on_delete=models.CASCADE,
     )
     receipt = models.ForeignKey(
         Receipt,
+        verbose_name='Рецепт',
         related_name='ingredients_in_receipts',
         on_delete=models.CASCADE,
     )
@@ -176,6 +178,8 @@ class IngredientInReceipt(models.Model):
                 name='unique_ingredient_receipt',
             )
         ]
+        verbose_name = 'Продукт в рецепте'
+        verbose_name_plural = 'продукты в рецепте'
 
     def __str__(self):
         return f'{self.ingredient} {self.receipt}'

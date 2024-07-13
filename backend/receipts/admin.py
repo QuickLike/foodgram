@@ -394,3 +394,26 @@ class SubscriptionAdmin(admin.ModelAdmin):
     list_display_links = (
         'follower',
     )
+
+
+@admin.register(IngredientInReceipt)
+class IngredientInReceiptAdmin(admin.ModelAdmin):
+    list_display = (
+        'ingredient',
+        'receipt',
+        'amount',
+    )
+    list_editable = (
+        'ingredient',
+        'amount',
+    )
+    search_fields = (
+        'ingredient__name',
+        'receipt__name',
+    )
+    list_filter = (
+        'receipt__name',
+    )
+    list_display_links = (
+        'receipt',
+    )
