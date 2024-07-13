@@ -1,10 +1,11 @@
 import ast
-from datetime import timedelta
+from datetime import timedelta, date
 
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -50,6 +51,7 @@ class IngredientAdmin(admin.ModelAdmin):
     )
     list_filter = (
         'measurement_unit',
+        # 'in_receipt',
     )
     list_display_links = (
         'name',
@@ -58,6 +60,10 @@ class IngredientAdmin(admin.ModelAdmin):
     @admin.display(description='Рецепты')
     def recipes_count(self, ingredient):
         return ingredient.recipes.count()
+
+    # @admin.display(description='Есть в рецепте')
+    # def in_receipt(self, ingredient):
+    #     return ingredient.recipes.count()
 
 
 @admin.register(Tag)
@@ -73,16 +79,13 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = (
         'name',
     )
-    list_filter = (
-        'name',
-    )
     list_display_links = (
         'slug',
     )
 
     @admin.display(description='Рецепты')
     def recipes_count(self, tag):
-        return tag.recipes.count()
+        return tag.recipes.all().count()
 
 
 class ReceiptIngredientsInline(admin.TabularInline):
@@ -106,19 +109,19 @@ class CookingTimeFilter(admin.SimpleListFilter):
             cooking_time__range=medium_range
         ).count()
         long_count = Receipt.objects.filter(
-            cooking_time__gt=MEDIUM_COOKING_TIME
+            cooking_time__range=long_range
         ).count()
 
         return [
             (
-                str(short_range),
+                short_range,
                 SHORT_COOKING_TIME_TEXT.format(
                     short_time=SHORT_COOKING_TIME,
                     short_count=short_count
                 )
             ),
             (
-                str(medium_range),
+                medium_range,
                 MEDIUM_COOKING_TIME_TEXT.format(
                     short_time=SHORT_COOKING_TIME,
                     medium_time=MEDIUM_COOKING_TIME,
@@ -126,7 +129,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
                 )
             ),
             (
-                str(long_range),
+                long_range,
                 LONG_COOKING_TIME_TEXT.format(
                     medium_time=MEDIUM_COOKING_TIME,
                     long_count=long_count
@@ -135,16 +138,10 @@ class CookingTimeFilter(admin.SimpleListFilter):
         ]
 
     def queryset(self, request, queryset):
-        value = self.value()
-        if value:
-            cooking_time_range = ast.literal_eval(value)
-            if cooking_time_range[1] == 10**10:
-                return queryset.filter(cooking_time__gt=cooking_time_range[0])
-            else:
-                return queryset.filter(
-                    cooking_time__range=cooking_time_range
-                )
-        return queryset
+        if not self.value():
+            return queryset
+        if ast.literal_eval(self.value())[1] == 10**10:
+            return queryset.filter(cooking_time__gt=ast.literal_eval(self.value())[0])
 
 
 class PublishedDateFilter(admin.SimpleListFilter):
@@ -155,6 +152,7 @@ class PublishedDateFilter(admin.SimpleListFilter):
         today = timezone.now().date()
         start_of_week = today - timedelta(days=today.weekday())
         start_of_month = today.replace(day=1)
+        very_old_date = date(1970, 1, 1)
 
         today_count = Receipt.objects.filter(
             published_at__date=today
@@ -165,19 +163,17 @@ class PublishedDateFilter(admin.SimpleListFilter):
         this_month_count = Receipt.objects.filter(
             published_at__date__gte=start_of_month
         ).count()
-        older_count = Receipt.objects.exclude(
-            published_at__date=today
-        ).exclude(
-            published_at__date__gte=start_of_week
-        ).exclude(
-            published_at__date__gte=start_of_month
+        older_count = Receipt.objects.filter(
+            published_at__date__lt=start_of_month
         ).count()
 
         return [
             ('today', (today, today), today_count),
             ('this_week', (start_of_week, today), this_week_count),
             ('this_month', (start_of_month, today), this_month_count),
-            ('older', (None, start_of_month - timedelta(days=1)), older_count),
+            ('older', (very_old_date, start_of_month - timedelta(days=1)),
+             older_count
+             ),
         ]
 
     def lookups(self, request, model_admin):
@@ -185,19 +181,19 @@ class PublishedDateFilter(admin.SimpleListFilter):
         return (
             (
                 'today',
-                TODAY_TEXT.format(count=filter_params[0][2])
+                'Сегодня ({count})'.format(count=filter_params[0][2])
             ),
             (
                 'this_week',
-                THIS_WEEK_TEXT.format(count=filter_params[1][2])
+                'На этой неделе ({count})'.format(count=filter_params[1][2])
             ),
             (
                 'this_month',
-                THIS_MONTH_TEXT.format(count=filter_params[2][2])
+                'В этом месяце ({count})'.format(count=filter_params[2][2])
             ),
             (
                 'older',
-                OLDER_TEXT.format(count=filter_params[3][2])
+                'Ранее ({count})'.format(count=filter_params[3][2])
             ),
         )
 
@@ -207,10 +203,6 @@ class PublishedDateFilter(admin.SimpleListFilter):
 
         for filter_name, (param1, param2), count in filter_params:
             if value == filter_name:
-                if param1 is None:
-                    return queryset.filter(
-                        published_at__date__lt=param2
-                    )
                 return queryset.filter(
                     published_at__date__range=(param1, param2)
                 )
