@@ -39,7 +39,7 @@ def generate_shopping_list(user):
         ],
         "Рецепты:",
         *[
-            f"{ingredient}: {', '.join(recipes_for_ingredients[ingredient])}"
+            f"{', '.join(recipes_for_ingredients[ingredient])}"
             for ingredient in recipes_for_ingredients
         ],
     ])

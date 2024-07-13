@@ -163,10 +163,17 @@ class RecipeSerializer(serializers.ModelSerializer):
         return data
 
     def validate_ingredients(self, ingredients):
-        return self.validate_items(ingredients, 'ingredients', Ingredient)
+        return self.validate_items(
+            ([ingredient['id'] for ingredient in ingredients], ingredients),
+            'ingredients',
+            Ingredient)
 
     def validate_tags(self, tags):
-        return self.validate_items(tags, 'tags', Tag)
+        return self.validate_items(
+            ([tag.id for tag in tags], tags),
+            'tags',
+            Tag
+        )
 
     def validate_image(self, image):
         if not image:
@@ -184,38 +191,29 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_items(items, field_name, model):
-        if not items:
+        if not items[1]:
             raise serializers.ValidationError(
                 f'{field_name}: Обязательное поле!'
             )
 
-        if model == Tag:
-            invalid_items = [
-                tag for tag in items if not Tag.objects.filter(
-                    id=tag.id
-                ).exists()
-            ]
-        else:
-            invalid_items = [
-                item_id for item_id in [
-                    item['id'] for item in items
-                ] if not model.objects.filter(
-                    id=item_id
-                ).exists()
-            ]
+        invalid_items = [
+            item for item in items[0] if not model.objects.filter(
+                id=item
+            ).exists()
+        ]
         if invalid_items:
             raise serializers.ValidationError(
-                f"Элементов с ID {invalid_items} не существует."
+                {field_name: f'Элементов с ID {invalid_items} не существует.'}
             )
 
-        duplicates = [item for item in items if items.count(item) > 1]
+        duplicates = [item for item in items[1] if items[1].count(item) > 1]
         if duplicates:
             raise serializers.ValidationError(
-                f'{field_name}: Повторяющиеся элементы не допустимы.\n'
-                f'{duplicates}'
+                {field_name: 'Повторяющиеся элементы не допустимы.\n'
+                             f'{duplicates}'}
             )
 
-        return items
+        return items[1]
 
     @staticmethod
     def ingredients_receipts_create(ingredients, receipt):
