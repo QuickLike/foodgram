@@ -216,7 +216,7 @@ class ReceiptAdmin(admin.ModelAdmin):
     inlines = [ReceiptIngredientsInline]
     list_display = (
         'name',
-        'author',
+        'author__username',
         'cooking_time_display',
         'tags_display',
         'ingredients_display',
