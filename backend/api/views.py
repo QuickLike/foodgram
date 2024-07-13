@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
@@ -134,6 +134,19 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             generate_shopping_list(request.user),
             filename='shopping_list.txt',
             content_type='text/plain; charset=utf-8'
+        )
+
+
+class ReceiptShortLinkView(APIView):
+
+    def get(self, request, **kwargs):
+        receipt_id = kwargs.get('receipt_id')
+        get_object_or_404(
+            Receipt,
+            id=receipt_id
+        )
+        return HttpResponseRedirect(
+            request.build_absolute_uri(f'/recipes/{receipt_id}/')
         )
 
 

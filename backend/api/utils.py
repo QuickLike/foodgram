@@ -1,8 +1,7 @@
 from collections import defaultdict
 from datetime import datetime
 
-from django.db.models import Sum, F, CharField, Value as V
-from django.db.models.functions import Concat
+from django.db.models import Sum
 
 from receipts.models import IngredientInReceipt
 
