@@ -163,10 +163,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         return data
 
     def validate_ingredients(self, ingredients):
-        return self.validate_items(ingredients, Ingredient)
+        return self.validate_items(ingredients, 'ingredients', Ingredient)
 
     def validate_tags(self, tags):
-        return self.validate_items(tags, Tag)
+        return self.validate_items(tags, 'tags', Tag)
 
     def validate_image(self, image):
         if not image:
@@ -183,31 +183,38 @@ class RecipeSerializer(serializers.ModelSerializer):
         return cooking_time
 
     @staticmethod
-    def validate_items(items, model=None):
+    def validate_items(items, field_name, model):
         if not items:
             raise serializers.ValidationError(
-                f'Обязательное поле "{model.__name__}".'
+                f'{field_name}: Обязательное поле!'
+            )
+
+        if model == Tag:
+            invalid_items = [
+                tag for tag in items if not Tag.objects.filter(
+                    id=tag.id
+                ).exists()
+            ]
+        else:
+            invalid_items = [
+                item_id for item_id in [
+                    item['id'] for item in items
+                ] if not model.objects.filter(
+                    id=item_id
+                ).exists()
+            ]
+        if invalid_items:
+            raise serializers.ValidationError(
+                f"Элементов с ID {invalid_items} не существует."
             )
 
         duplicates = [item for item in items if items.count(item) > 1]
         if duplicates:
             raise serializers.ValidationError(
-                f'Ошибка поля "{model.__name__}".\n'
-                f'Повторяющиеся элементы не допустимы.\n{duplicates}'
+                f'{field_name}: Повторяющиеся элементы не допустимы.\n'
+                f'{duplicates}'
             )
 
-        if model == Tag:
-            return items
-        item_ids = [item['id'] for item in items]
-        invalid_items = [
-            item_id for item_id in item_ids if not model.objects.filter(
-                id=item_id
-            ).exists()
-        ]
-        if invalid_items:
-            raise serializers.ValidationError(
-                f"Элементов с ID {invalid_items} не существует."
-            )
         return items
 
     @staticmethod

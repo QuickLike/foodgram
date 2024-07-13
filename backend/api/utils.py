@@ -1,6 +1,8 @@
 from collections import defaultdict
+from datetime import datetime
 
-from django.db.models import Sum
+from django.db.models import Sum, F, CharField, Value as V
+from django.db.models.functions import Concat
 
 from receipts.models import IngredientInReceipt
 
@@ -13,32 +15,34 @@ def generate_shopping_list(user):
             'ingredient__name',
             'ingredient__measurement_unit'
         ).annotate(
-            total_amount=Sum('amount')
+            total_amount=Sum('amount'),
+            recipes=Concat(
+                F('ingredient__name'), V(': '), F('receipt__name'),
+                output_field=CharField()
+            )
         )
     )
 
     recipes_for_ingredients = defaultdict(set)
-    for item in IngredientInReceipt.objects.filter(
-            receipt__shopping_carts__user=user
-    ):
-        recipes_for_ingredients[item.ingredient.name].add(item.receipt.name)
+    for item in ingredients_in_receipt:
+        ingredient_name = item['ingredient__name']
+        recipe_name = item['recipes'].split(': ')[1]
+        recipes_for_ingredients[ingredient_name].add(recipe_name)
 
-    product_lines = [
-        (f"{id_ + 1}. {ingredient['ingredient__name']}: "
-         f"{ingredient['total_amount']} "
-         f"{ingredient['ingredient__measurement_unit']}")
-        for id_, ingredient in enumerate(ingredients_in_receipt)
-    ]
-
-    recipe_lines = [
-        f"{ingredient}: {', '.join(recipes_for_ingredients[ingredient])}"
-        for ingredient in recipes_for_ingredients
-    ]
-
+    # Формируем список покупок
     return '\n'.join([
-        f"Список покупок для {user.username}:",
+        f'Список покупок для {user.username}. '
+        f'Дата составления {datetime.now().strftime("%d.%m.%Y %H:%M")}:',
         "Продукты:",
-        *product_lines,
+        *[
+            (f"{id_}. {ingredient['ingredient__name'].title()}: "
+             f"{ingredient['total_amount']} "
+             f"{ingredient['ingredient__measurement_unit']}")
+            for id_, ingredient in enumerate(ingredients_in_receipt, start=1)
+        ],
         "Рецепты:",
-        *recipe_lines,
+        *[
+            f"{ingredient}: {', '.join(recipes_for_ingredients[ingredient])}"
+            for ingredient in recipes_for_ingredients
+        ],
     ])
