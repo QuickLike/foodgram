@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import datetime
 
 from django.db.models import Sum
@@ -7,7 +6,6 @@ from receipts.models import IngredientInReceipt
 
 
 def generate_shopping_list(user):
-
     ingredients_in_receipt = (
         IngredientInReceipt.objects.filter(
             receipt__shopping_carts__user=user
@@ -19,13 +17,14 @@ def generate_shopping_list(user):
         )
     )
 
-    recipes_for_ingredients = defaultdict(set)
-    for item in IngredientInReceipt.objects.filter(
-            receipt__shopping_carts__user=user
-    ).values('ingredient__name', 'receipt__name'):
-        ingredient_name = item['ingredient__name']
-        recipe_name = item['receipt__name']
-        recipes_for_ingredients[ingredient_name].add(recipe_name)
+    recipes_for_ingredients = {}
+    for ingredient_info in ingredients_in_receipt:
+        ingredient_name = ingredient_info['ingredient__name']
+        recipes = IngredientInReceipt.objects.filter(
+            receipt__shopping_carts__user=user,
+            ingredient__name=ingredient_name
+        ).values_list('receipt__name', flat=True).distinct()
+        recipes_for_ingredients[ingredient_name] = recipes
 
     return '\n'.join([
         f'Список покупок для {user.username}. '
