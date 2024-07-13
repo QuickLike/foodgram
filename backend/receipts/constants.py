@@ -6,15 +6,10 @@ EMAIL_MAX_LENGTH = 100
 SHORT_COOKING_TIME = 15
 MEDIUM_COOKING_TIME = 60
 
-SHORT_COOKING_TIME_TEXT = """
-Быстрые (<= {short_time} мин) ({short_count})
-"""
-MEDIUM_COOKING_TIME_TEXT = """
-Средние ({short_time} - {medium_time} мин) ({medium_count})
-"""
-LONG_COOKING_TIME_TEXT = """
-Долгие (> {medium_time} мин) ({long_count})
-"""
+SHORT_COOKING_TIME_TEXT = 'Быстрые (<= {short_time} мин) ({short_count})'
+MEDIUM_COOKING_TIME_TEXT = ('Средние ({short_time} - {medium_time} мин) '
+                            '({medium_count})')
+LONG_COOKING_TIME_TEXT = 'Долгие (> {medium_time} мин) ({long_count})'
 
 TODAY_TEXT = "За сегодня ({count})"
 THIS_WEEK_TEXT = "За эту неделю ({count})"

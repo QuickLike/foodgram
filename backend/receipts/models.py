@@ -160,7 +160,7 @@ class IngredientInReceipt(models.Model):
     )
     receipt = models.ForeignKey(
         Receipt,
-        related_name='ingredients_in_receipt',
+        related_name='ingredients_in_receipts',
         on_delete=models.CASCADE,
     )
     amount = models.PositiveSmallIntegerField(

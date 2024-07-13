@@ -1,3 +1,4 @@
+import ast
 from datetime import timedelta
 
 from django.contrib import admin
@@ -86,7 +87,7 @@ class CookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
-    def get_filter_ranges(self):
+    def lookups(self, request, model_admin):
         short_range = (0, SHORT_COOKING_TIME)
         medium_range = (SHORT_COOKING_TIME + 1, MEDIUM_COOKING_TIME)
         long_range = (MEDIUM_COOKING_TIME + 1, 10**10)
@@ -102,58 +103,40 @@ class CookingTimeFilter(admin.SimpleListFilter):
         ).count()
 
         return [
-            ('short', short_range, short_count),
-            ('medium', medium_range, medium_count),
-            ('long', long_range, long_count),
-        ]
-
-    def lookups(self, request, model_admin):
-        filter_ranges = self.get_filter_ranges()
-        return [
             (
-                'short', SHORT_COOKING_TIME_TEXT.format(
+                str(short_range),
+                SHORT_COOKING_TIME_TEXT.format(
                     short_time=SHORT_COOKING_TIME,
                     short_count=short_count
                 )
-            )
-            for short,
-            short_range,
-            short_count in filter_ranges if short == 'short'
-        ] + [
+            ),
             (
-                'medium',
+                str(medium_range),
                 MEDIUM_COOKING_TIME_TEXT.format(
                     short_time=SHORT_COOKING_TIME,
                     medium_time=MEDIUM_COOKING_TIME,
                     medium_count=medium_count
                 )
-            )
-            for medium,
-            medium_range,
-            medium_count in filter_ranges if medium == 'medium'
-        ] + [
+            ),
             (
-                'long',
+                str(long_range),
                 LONG_COOKING_TIME_TEXT.format(
                     medium_time=MEDIUM_COOKING_TIME,
                     long_count=long_count
                 )
-            )
-            for long,
-            long_range,
-            long_count in filter_ranges if long == 'long'
+            ),
         ]
 
     def queryset(self, request, queryset):
         value = self.value()
-        filter_ranges = self.get_filter_ranges()
-
-        for filter_name, filter_range, count in filter_ranges:
-            if value == filter_name:
-                if filter_range[1] == float('inf'):
-                    return queryset.filter(cooking_time__gt=filter_range[0])
-                else:
-                    return queryset.filter(cooking_time__range=filter_range)
+        if value:
+            cooking_time_range = ast.literal_eval(value)
+            if cooking_time_range[1] == 10**10:
+                return queryset.filter(cooking_time__gt=cooking_time_range[0])
+            else:
+                return queryset.filter(
+                    cooking_time__range=cooking_time_range
+                )
         return queryset
 
 
@@ -215,15 +198,16 @@ class PublishedDateFilter(admin.SimpleListFilter):
         value = self.value()
         filter_params = self.get_filter_params()
 
-        for filter_name, filter_range, count in filter_params:
+        for filter_name, (param1, param2), count in filter_params:
             if value == filter_name:
-                if filter_range[0] is None:
+                if param1 is None:
                     return queryset.filter(
-                        published_at__date__lt=filter_range[1]
+                        published_at__date__lt=param2
                     )
                 return queryset.filter(
-                    published_at__date__range=filter_range
+                    published_at__date__range=(param1, param2)
                 )
+
         return queryset
 
 
@@ -271,7 +255,7 @@ class ReceiptAdmin(admin.ModelAdmin):
                 f'{ingredient_in_receipt.ingredient.measurement_unit}, '
                 f'{ingredient_in_receipt.amount}'
                 for ingredient_in_receipt in
-                receipt.ingredients_in_receipt.all()
+                receipt.ingredients_in_receipts.all()
             ]
         )
 

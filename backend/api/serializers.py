@@ -90,7 +90,7 @@ class TagSerializer(serializers.ModelSerializer):
 class ReceiptSerializer(serializers.ModelSerializer):
     author = UserSerializer()
     ingredients = ReceiptIngredientSerializer(
-        source='ingredients_in_receipt',
+        source='ingredients_in_receipts',
         many=True
     )
     tags = TagSerializer(many=True)
@@ -234,7 +234,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         ingredients_data = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         instance.tags.set(tags)
-        instance.ingredients_in_receipt.all().delete()
+        instance.ingredients_in_receipts.all().delete()
         self.ingredients_receipts_create(ingredients_data, instance)
         return super().update(instance, validated_data)
 
