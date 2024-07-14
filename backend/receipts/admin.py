@@ -44,9 +44,13 @@ class UsedInRecipesFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() == 'in recipes':
-            return queryset.annotate(recipes_count=Count('recipes')).filter(recipes_count__gt=0)
+            return queryset.annotate(
+                recipes_count=Count('recipes')
+            ).filter(recipes_count__gt=0)
         if self.value() == 'no':
-            return queryset.annotate(recipes_count=Count('recipes')).filter(recipes_count=0)
+            return queryset.annotate(
+                recipes_count=Count('recipes')
+            ).filter(recipes_count=0)
         return queryset
 
 

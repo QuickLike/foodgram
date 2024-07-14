@@ -37,7 +37,10 @@ def generate_shopping_list(user):
             (f"{id_}. {ingredient_info['ingredient__name'].title()}: "
              f"{ingredient_info['total_amount']} "
              f"{ingredient_info['ingredient__measurement_unit']}")
-            for id_, ingredient_info in enumerate(ingredients_in_receipt, start=1)
+            for id_, ingredient_info in enumerate(
+                ingredients_in_receipt,
+                start=1
+            )
         ],
         "Рецепты:",
         *[
