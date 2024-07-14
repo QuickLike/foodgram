@@ -179,6 +179,10 @@ class IngredientInReceipt(models.Model):
                 name='unique_ingredient_receipt',
             )
         ]
+        indexes = [
+            models.Index(fields=['ingredient']),
+            models.Index(fields=['receipt']),
+        ]
         verbose_name = 'Продукт в рецепте'
         verbose_name_plural = 'продукты в рецепте'
 

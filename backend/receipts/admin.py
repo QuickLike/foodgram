@@ -423,3 +423,8 @@ class IngredientInReceiptAdmin(admin.ModelAdmin):
     list_display_links = (
         'receipt',
     )
+    list_per_page = 20
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related('ingredient', 'receipt')
