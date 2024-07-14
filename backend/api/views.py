@@ -138,10 +138,6 @@ class ReceiptViewSet(viewsets.ModelViewSet):
             content_type='text/plain; charset=utf-8'
         )
 
-    @method_decorator(csrf_exempt)
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
 
 class ReceiptShortLinkView(APIView):
 
