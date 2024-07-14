@@ -157,6 +157,7 @@ class IngredientInReceipt(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         verbose_name='Продукт',
+        related_name='receipts',
         on_delete=models.CASCADE,
     )
     receipt = models.ForeignKey(

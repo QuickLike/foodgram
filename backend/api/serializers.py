@@ -164,13 +164,15 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate_ingredients(self, ingredients):
         return self.validate_items(
-            ([ingredient['id'] for ingredient in ingredients], ingredients),
+            [ingredient['id'] for ingredient in ingredients],
+            ingredients,
             'ingredients',
             Ingredient)
 
     def validate_tags(self, tags):
         return self.validate_items(
-            ([tag.id for tag in tags], tags),
+            [tag.id for tag in tags],
+            tags,
             'tags',
             Tag
         )
@@ -190,15 +192,15 @@ class RecipeSerializer(serializers.ModelSerializer):
         return cooking_time
 
     @staticmethod
-    def validate_items(items, field_name, model):
-        if not items[1]:
+    def validate_items(item_ids, items, field_name, model):
+        if not items:
             raise serializers.ValidationError(
                 f'{field_name}: Обязательное поле!'
             )
 
         invalid_items = [
-            item for item in items[0] if not model.objects.filter(
-                id=item
+            item_id for item_id in item_ids if not model.objects.filter(
+                id=item_id
             ).exists()
         ]
         if invalid_items:
@@ -206,14 +208,14 @@ class RecipeSerializer(serializers.ModelSerializer):
                 {field_name: f'Элементов с ID {invalid_items} не существует.'}
             )
 
-        duplicates = [item for item in items[1] if items[1].count(item) > 1]
+        duplicates = [item for item in items if items.count(item) > 1]
         if duplicates:
             raise serializers.ValidationError(
                 {field_name: 'Повторяющиеся элементы не допустимы.\n'
                              f'{duplicates}'}
             )
 
-        return items[1]
+        return items
 
     @staticmethod
     def ingredients_receipts_create(ingredients, receipt):

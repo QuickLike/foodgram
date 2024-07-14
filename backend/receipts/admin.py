@@ -5,6 +5,7 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
+from django.db.models import Count
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -31,6 +32,24 @@ User = get_user_model()
 admin.site.unregister(Group)
 
 
+class UsedInRecipesFilter(admin.SimpleListFilter):
+    title = 'Используется в рецептах'
+    parameter_name = 'used_in_recipes'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('in recipes', 'Есть в рецептах'),
+            ('no', 'Нет')
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == 'in recipes':
+            return queryset.annotate(recipes_count=Count('recipes')).filter(recipes_count__gt=0)
+        if self.value() == 'no':
+            return queryset.annotate(recipes_count=Count('recipes')).filter(recipes_count=0)
+        return queryset
+
+
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = (
@@ -43,9 +62,11 @@ class IngredientAdmin(admin.ModelAdmin):
     )
     search_fields = (
         'name',
+        'measurement_unit',
     )
     list_filter = (
         'measurement_unit',
+        UsedInRecipesFilter,
     )
     list_display_links = (
         'name',
@@ -54,9 +75,6 @@ class IngredientAdmin(admin.ModelAdmin):
     @admin.display(description='Рецепты')
     def recipes_count(self, ingredient):
         return ingredient.recipes.count()
-
-    def get_queryset(self, request):
-        return Ingredient.objects.filter(recipes__gt=0)
 
 
 @admin.register(Tag)
@@ -78,7 +96,7 @@ class TagAdmin(admin.ModelAdmin):
 
     @admin.display(description='Рецепты')
     def recipes_count(self, tag):
-        return tag.recipes.all().count()
+        return tag.recipes.count()
 
 
 class ReceiptIngredientsInline(admin.TabularInline):
@@ -133,10 +151,8 @@ class CookingTimeFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         if not self.value():
             return queryset
-        if ast.literal_eval(self.value())[1] == 10**10:
-            return queryset.filter(
-                cooking_time__gt=ast.literal_eval(self.value())[0]
-            )
+        value_range = ast.literal_eval(self.value())
+        return queryset.filter(cooking_time__range=value_range)
 
 
 class PublishedDateFilter(admin.SimpleListFilter):
