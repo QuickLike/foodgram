@@ -2,8 +2,6 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.http import FileResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from rest_framework import status, viewsets
