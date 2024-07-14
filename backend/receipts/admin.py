@@ -5,7 +5,6 @@ from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin
 from django.contrib.auth.models import Group
-from django.db.models import Count
 from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
@@ -38,19 +37,12 @@ class UsedInRecipesFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            ('in recipes', 'Есть в рецептах'),
-            ('no', 'Нет')
+            ('in recipes', 'Есть в рецептах')
         ]
 
     def queryset(self, request, queryset):
         if self.value() == 'in recipes':
-            return queryset.annotate(
-                recipes_count=Count('recipes')
-            ).filter(recipes_count__gt=0)
-        if self.value() == 'no':
-            return queryset.annotate(
-                recipes_count=Count('recipes')
-            ).filter(recipes_count=0)
+            return queryset.filter(recipes__isnull=False).distinct()
         return queryset
 
 
@@ -155,8 +147,9 @@ class CookingTimeFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         if not self.value():
             return queryset
-        value_range = ast.literal_eval(self.value())
-        return queryset.filter(cooking_time__range=value_range)
+        return queryset.filter(
+            cooking_time__range=ast.literal_eval(self.value())
+        )
 
 
 class PublishedDateFilter(admin.SimpleListFilter):

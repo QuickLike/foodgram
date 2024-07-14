@@ -157,13 +157,11 @@ class IngredientInReceipt(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         verbose_name='Продукт',
-        related_name='receipts',
         on_delete=models.CASCADE,
     )
     receipt = models.ForeignKey(
         Receipt,
         verbose_name='Рецепт',
-        related_name='ingredients_in_receipts',
         on_delete=models.CASCADE,
     )
     amount = models.PositiveSmallIntegerField(
@@ -179,10 +177,7 @@ class IngredientInReceipt(models.Model):
                 name='unique_ingredient_receipt',
             )
         ]
-        indexes = [
-            models.Index(fields=['ingredient']),
-            models.Index(fields=['receipt']),
-        ]
+        default_related_name = 'ingredients_in_receipts'
         verbose_name = 'Продукт в рецепте'
         verbose_name_plural = 'продукты в рецепте'
 
